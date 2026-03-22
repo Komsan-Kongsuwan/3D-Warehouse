@@ -905,7 +905,61 @@ body.light .stat-card.util .sc-value { color: #0d5fa3; }
 .age-filter-btn.active { background: #1a6aaa; border-color: #5bc8ff; color: #fff; }
 body.light .age-filter-btn.active { background: #0d5fa3; border-color: #0d5fa3; color: #fff; }
 
-/* ─── ROW PICKER PANEL ─────────────────────────────────────── */
+/* ─── DEMO NOTICE BANNER ───────────────────────────────────── */
+#demo-notice {
+    margin: 8px 6px 4px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(26,106,170,0.25), rgba(74,32,128,0.25));
+    border: 1px solid rgba(91,200,255,0.3);
+    padding: 9px 11px;
+    font-size: 10.5px;
+    line-height: 1.55;
+    color: var(--text-hi);
+    position: relative;
+    overflow: hidden;
+    transition: opacity 0.8s ease, max-height 0.6s ease, margin 0.6s ease, padding 0.6s ease;
+    max-height: 120px;
+    opacity: 1;
+}
+#demo-notice.fade-out {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+#demo-notice .dn-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #5bc8ff;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+body.light #demo-notice .dn-title { color: #0d5fa3; }
+#demo-notice .dn-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 9.5px;
+    color: var(--text-mid);
+    opacity: 0.85;
+}
+/* Progress bar draining across bottom */
+#demo-notice::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 2px;
+    background: #5bc8ff;
+    animation: drain 6s linear forwards;
+}
+@keyframes drain {
+    from { width: 100%; }
+    to   { width: 0%; }
+}
+
 #row-picker {
     position: fixed;
     bottom: 14px;
@@ -1151,6 +1205,11 @@ body.light #hover-tooltip {
         <!-- File uploads -->
         <div class="section-label">Data Sources</div>
 
+        <!-- Demo notice banner — shown on startup, fades out -->
+        <div id="demo-notice" style="display:none">
+            <div class="dn-title">⚠ Sample Data</div>
+            <div class="dn-text">This layout and inventory is for demo purposes only. Upload your own files below to visualize your warehouse.</div>
+        </div>
         <div class="upload-card" id="layoutCard">
             <div class="upload-card-icon">📐</div>
             <div class="upload-card-info">
@@ -2759,6 +2818,11 @@ function loadDemoData(data) {
 
         document.getElementById('status').innerHTML =
             `<span class="stat-ok">✓</span> Demo data loaded — <span class="stat-hi">${data.layout.length}</span> rows · <span class="stat-hi">${validLocations.size.toLocaleString()}</span> locations · <span class="stat-hi">${data.inventory.length.toLocaleString()}</span> items`;
+
+        // Show demo notice banner then fade out after 6 seconds
+        const notice = document.getElementById('demo-notice');
+        notice.style.display = 'block';
+        setTimeout(() => notice.classList.add('fade-out'), 6000);
 
     } catch(err) {
         console.error('Demo data load error:', err);
