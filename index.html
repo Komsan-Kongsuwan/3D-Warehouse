@@ -907,34 +907,36 @@ body.light .age-filter-btn.active { background: #0d5fa3; border-color: #0d5fa3; 
 
 /* ─── DEMO NOTICE BANNER ───────────────────────────────────── */
 #demo-notice {
-    margin: 8px 6px 4px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(26,106,170,0.25), rgba(74,32,128,0.25));
-    border: 1px solid rgba(91,200,255,0.3);
-    padding: 9px 11px;
-    font-size: 10.5px;
-    line-height: 1.55;
-    color: var(--text-hi);
-    position: relative;
-    overflow: hidden;
-    transition: opacity 0.8s ease, max-height 0.6s ease, margin 0.6s ease, padding 0.6s ease;
-    max-height: 120px;
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 8500;
+    background: rgba(10,20,40,0.88);
+    border: 1px solid rgba(91,200,255,0.35);
+    border-radius: 10px;
+    padding: 12px 20px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 1.2s ease;
     opacity: 1;
 }
-#demo-notice.fade-out {
-    opacity: 0;
-    max-height: 0;
-    margin-top: 0;
-    margin-bottom: 0;
-    padding-top: 0;
-    padding-bottom: 0;
+body.light #demo-notice {
+    background: rgba(230,240,255,0.92);
+    border-color: rgba(13,95,163,0.3);
 }
+#demo-notice.fade-out { opacity: 0; }
 #demo-notice .dn-title {
     font-family: 'Rajdhani', sans-serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: #5bc8ff;
-    margin-bottom: 3px;
     display: flex;
     align-items: center;
     gap: 5px;
@@ -943,22 +945,11 @@ body.light #demo-notice .dn-title { color: #0d5fa3; }
 #demo-notice .dn-text {
     font-family: 'DM Mono', monospace;
     font-size: 9.5px;
-    color: var(--text-mid);
-    opacity: 0.85;
+    color: rgba(180,210,240,0.8);
+    max-width: 320px;
+    line-height: 1.5;
 }
-/* Progress bar draining across bottom */
-#demo-notice::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0;
-    height: 2px;
-    background: #5bc8ff;
-    animation: drain 6s linear forwards;
-}
-@keyframes drain {
-    from { width: 100%; }
-    to   { width: 0%; }
-}
+body.light #demo-notice .dn-text { color: rgba(30,60,100,0.7); }
 
 #row-picker {
     position: fixed;
@@ -1204,12 +1195,6 @@ body.light #hover-tooltip {
 
         <!-- File uploads -->
         <div class="section-label">Data Sources</div>
-
-        <!-- Demo notice banner — shown on startup, fades out -->
-        <div id="demo-notice" style="display:none">
-            <div class="dn-title">⚠ Sample Data</div>
-            <div class="dn-text">This layout and inventory is for demo purposes only. Upload your own files below to visualize your warehouse.</div>
-        </div>
         <div class="upload-card" id="layoutCard">
             <div class="upload-card-icon">📐</div>
             <div class="upload-card-info">
@@ -2819,10 +2804,13 @@ function loadDemoData(data) {
         document.getElementById('status').innerHTML =
             `<span class="stat-ok">✓</span> Demo data loaded — <span class="stat-hi">${data.layout.length}</span> rows · <span class="stat-hi">${validLocations.size.toLocaleString()}</span> locations · <span class="stat-hi">${data.inventory.length.toLocaleString()}</span> items`;
 
-        // Show demo notice banner then fade out after 6 seconds
+        // Show demo notice banner in viewport, fade out after 5 seconds
         const notice = document.getElementById('demo-notice');
-        notice.style.display = 'block';
-        setTimeout(() => notice.classList.add('fade-out'), 6000);
+        notice.style.display = 'flex';
+        setTimeout(() => {
+            notice.classList.add('fade-out');
+            setTimeout(() => { notice.style.display = 'none'; }, 1200);
+        }, 5000);
 
     } catch(err) {
         console.error('Demo data load error:', err);
@@ -2958,6 +2946,12 @@ canvas.addEventListener('mouseleave', () => {
         <button class="age-filter-btn" data-age="1y">&gt; 1 Year</button>
         <button class="age-filter-btn" data-age="2y">&gt; 2 Years</button>
     </div>
+</div>
+
+<!-- Demo notice banner -->
+<div id="demo-notice">
+    <div class="dn-title">⚠ Sample Data</div>
+    <div class="dn-text">This layout and inventory is for demo purposes only.<br>Upload your own files in the sidebar to visualize your warehouse.</div>
 </div>
 
 <!-- Row picker panel -->
