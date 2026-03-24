@@ -905,7 +905,38 @@ body.light .stat-card.util .sc-value { color: #0d5fa3; }
 .age-filter-btn.active { background: #1a6aaa; border-color: #5bc8ff; color: #fff; }
 body.light .age-filter-btn.active { background: #0d5fa3; border-color: #0d5fa3; color: #fff; }
 
-/* ─── DEMO NOTICE BANNER ───────────────────────────────────── */
+/* ─── USAGE GUIDE (bottom-left viewport) ───────────────────── */
+#usage-guide {
+    position: fixed;
+    bottom: 110px;
+    left: 254px;
+    z-index: 9000;
+    display: flex;
+    gap: 10px;
+    pointer-events: none;
+    user-select: none;
+    align-items: center;
+}
+.ug-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: rgba(160,190,220,0.45);
+    white-space: nowrap;
+}
+body.light .ug-item { color: rgba(40,70,110,0.35); }
+.ug-key {
+    font-weight: 700;
+    color: rgba(91,200,255,0.6);
+}
+body.light .ug-key { color: rgba(13,95,163,0.5); }
+.ug-sep {
+    color: rgba(100,130,160,0.3);
+    font-size: 8px;
+}
+
 #demo-notice {
     position: fixed;
     top: 60px;
@@ -1461,13 +1492,13 @@ controls.enableDamping = false;
 controls.rotateSpeed   = 0.12;
 controls.zoomSpeed     = 2.5;
 controls.panSpeed      = 1.5;
-controls.enablePan     = false;       // pan via scrollbars only
+controls.enablePan     = true;
 controls.enableZoom    = true;
 controls.zoomToCursor  = false;
 controls.mouseButtons  = {
     LEFT:   THREE.MOUSE.ROTATE,
-    MIDDLE: THREE.MOUSE.DOLLY,        // middle-click drag = zoom
-    RIGHT:  THREE.MOUSE.ROTATE        // right-click = rotate too
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT:  THREE.MOUSE.PAN          // right-drag = pan
 };
 controls.maxPolarAngle = Math.PI / 2.2;
 controls.update();
@@ -2946,6 +2977,17 @@ canvas.addEventListener('mouseleave', () => {
         <button class="age-filter-btn" data-age="1y">&gt; 1 Year</button>
         <button class="age-filter-btn" data-age="2y">&gt; 2 Years</button>
     </div>
+</div>
+
+<!-- Usage guide bottom-left -->
+<div id="usage-guide">
+    <div class="ug-item"><span class="ug-key">drag</span> rotate</div>
+    <div class="ug-sep">·</div>
+    <div class="ug-item"><span class="ug-key">scroll</span> zoom</div>
+    <div class="ug-sep">·</div>
+    <div class="ug-item"><span class="ug-key">right-drag</span> pan</div>
+    <div class="ug-sep">·</div>
+    <div class="ug-item"><span class="ug-key">click label</span> isolate row</div>
 </div>
 
 <!-- Demo notice banner -->
