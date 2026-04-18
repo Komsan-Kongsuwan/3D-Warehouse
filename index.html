@@ -2150,7 +2150,7 @@ function updateStats() {
         return passCust && passItem;
     }
 
-    // Collect scoped locations from locationMap
+    // Collect scoped stats from locationMap — single pass per location
     const scopedCustomers = new Set();
     const scopedItemCodes = new Set();
     const age = { m3: 0, m6: 0, y1: 0, y2: 0, y2p: 0 };
@@ -2163,18 +2163,21 @@ function updateStats() {
 
         scopedOccupied++;
         scopedCustomers.add(custName);
+        items.forEach(item => { if (item.itemCode) scopedItemCodes.add(item.itemCode); });
 
+        // Age bucket — assign location once based on its OLDEST item
+        let maxMonths = null;
         items.forEach(item => {
-            if (item.itemCode) scopedItemCodes.add(item.itemCode);
-
             const m = getAgeMonths(item.receivingDate);
-            if (m === null) return;
-            if      (m <= 3)  age.m3++;
-            else if (m <= 6)  age.m6++;
-            else if (m <= 12) age.y1++;
-            else if (m <= 24) age.y2++;
-            else               age.y2p++;
+            if (m !== null && (maxMonths === null || m > maxMonths)) maxMonths = m;
         });
+        if (maxMonths !== null) {
+            if      (maxMonths <= 3)  age.m3++;
+            else if (maxMonths <= 6)  age.m6++;
+            else if (maxMonths <= 12) age.y1++;
+            else if (maxMonths <= 24) age.y2++;
+            else                      age.y2p++;
+        }
     });
 
     const util = totalSlots > 0 ? (scopedOccupied / totalSlots * 100).toFixed(1) : '0.0';
