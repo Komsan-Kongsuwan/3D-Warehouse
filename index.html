@@ -1747,23 +1747,13 @@ function createFloorLabel(text, x, z, bgColor, textColor) {
     const planeH = 10;
     const planeW = aspect * planeH;
 
-    // Visible label mesh
+    // Visible label mesh only — no click interaction
     const geo  = new THREE.PlaneGeometry(planeW, planeH);
     const mat  = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
-
-    // Invisible larger hit area (3× size) for easier clicking
-    const hitGeo = new THREE.PlaneGeometry(Math.max(planeW * 3, 30), 30);
-    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
-    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
-
-    // Group both so userData is on the group
-    const group = new THREE.Group();
-    group.add(mesh);
-    group.add(hitMesh);
-    group.rotation.x = -Math.PI / 2;
-    group.position.set(x, 0.5, z);
-    return group;
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(x, 0.5, z);
+    return mesh;
 }
 
 function buildLabels() {
@@ -1782,8 +1772,6 @@ function buildLabels() {
         const labelX = (geo.orientation === 0) ? geo.xPos - 10 : geo.xPos;
         const labelZ = (geo.orientation === 0) ? geo.zStart     : geo.zStart - 10;
         const mesh = createFloorLabel(rowName, labelX, labelZ, LABEL_BG, LABEL_TC);
-        mesh.userData.rowName = rowName;
-        mesh.userData.isFloorLabel = true;
         scene.add(mesh);
         floorLabels.push(mesh);
     });
@@ -2180,17 +2168,9 @@ function isolateRow(rowName) {
         cg.visible = true;
     });
 
-    // Highlight the active floor label (child[0] = visible label, child[1] = hit plane)
-    floorLabels.forEach(lbl => {
-        const op = (lbl.userData.rowName === rowName) ? 1.0 : 0.2;
-        if (lbl.children[0] && lbl.children[0].material)
-            lbl.children[0].material.opacity = op;
-    });
-
     // Open 2D panel
     openRowPanel(rowName);
     updateRowPickerActive();
-}
 
 function restoreAllRows() {
     isolatedRow = null;
@@ -2204,10 +2184,6 @@ function restoreAllRows() {
                 child.material.color.setHex(0x888888);
             }
         });
-    });
-    floorLabels.forEach(lbl => {
-        if (lbl.children[0] && lbl.children[0].material)
-            lbl.children[0].material.opacity = 1.0;
     });
     closeRowPanel();
     updateRowPickerActive();
@@ -2532,23 +2508,7 @@ window.addEventListener('click', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    // 1. Check floor labels first — recursive to hit child meshes inside groups
-    const labelHits = raycaster.intersectObjects(floorLabels, true);
-    if (labelHits.length > 0) {
-        // userData is on the Group (parent of the hit mesh)
-        const labelGroup = labelHits[0].object.parent;
-        const clickedRow = labelGroup.userData.rowName;
-        if (clickedRow) {
-            if (isolatedRow === clickedRow) {
-                restoreAllRows();
-            } else {
-                isolateRow(clickedRow);
-            }
-            return;
-        }
-    }
-
-    // 2. Check cubes
+    // Check cubes
     const allMeshes = [];
     cubes.forEach(cubeGroup => {
         cubeGroup.children.forEach(child => {
