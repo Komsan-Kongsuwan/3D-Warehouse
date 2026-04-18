@@ -2135,14 +2135,11 @@ document.addEventListener('click', e => {
 });
 
 function updateStats() {
-    const totalSlots    = cubes.length;
-    const now           = new Date();
-
+    const totalSlots = cubes.length;
     const hasCustomerSel = selectedCustomers.size > 0;
     const hasItemSel     = selectedItems.size > 0;
     const hasSelection   = hasCustomerSel || hasItemSel;
 
-    // Determine which locations are in scope based on current selection
     const itemLocs = hasItemSel ? getItemLocations() : null;
 
     function inScope(locKey, custName) {
@@ -2152,35 +2149,41 @@ function updateStats() {
         return passCust && passItem;
     }
 
-    // Collect scoped stats from locationMap — single pass per location
+    // Use cubes as ground truth — already filtered by layout + locationMap match
     const scopedCustomers = new Set();
     const scopedItemCodes = new Set();
     const age = { m3: 0, m6: 0, y1: 0, y2: 0, y2p: 0 };
     let scopedOccupied = 0;
 
-    locationMap.forEach((items, locKey) => {
-        if (!Array.isArray(items) || items.length === 0) return;
-        // Only count locations that exist in the layout (rack locations only)
-        if (validLocations.size > 0 && !validLocations.has(locKey)) return;
-        const custName = items[0].customer;
+    cubes.forEach(cg => {
+        if (!cg.userData.isOccupied) return;
+        const locKey   = cg.userData.location;
+        const custName = cg.userData.customer;
         if (!inScope(locKey, custName)) return;
 
         scopedOccupied++;
         scopedCustomers.add(custName);
-        items.forEach(item => { if (item.itemCode) scopedItemCodes.add(item.itemCode); });
 
-        // Age bucket — assign location once based on its OLDEST item
-        let maxMonths = null;
-        items.forEach(item => {
-            const m = getAgeMonths(item.receivingDate);
-            if (m !== null && (maxMonths === null || m > maxMonths)) maxMonths = m;
-        });
-        if (maxMonths !== null) {
-            if      (maxMonths <= 3)  age.m3++;
-            else if (maxMonths <= 6)  age.m6++;
-            else if (maxMonths <= 12) age.y1++;
-            else if (maxMonths <= 24) age.y2++;
-            else                      age.y2p++;
+        // Get full item details from locationMap
+        const items = locationMap.get(locKey);
+        if (Array.isArray(items)) {
+            items.forEach(item => {
+                if (item.itemCode) scopedItemCodes.add(item.itemCode);
+            });
+
+            // Age bucket — oldest item
+            let maxMonths = null;
+            items.forEach(item => {
+                const m = getAgeMonths(item.receivingDate);
+                if (m !== null && (maxMonths === null || m > maxMonths)) maxMonths = m;
+            });
+            if (maxMonths !== null) {
+                if      (maxMonths <= 3)  age.m3++;
+                else if (maxMonths <= 6)  age.m6++;
+                else if (maxMonths <= 12) age.y1++;
+                else if (maxMonths <= 24) age.y2++;
+                else                      age.y2p++;
+            }
         }
     });
 
