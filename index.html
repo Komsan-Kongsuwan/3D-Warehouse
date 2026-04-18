@@ -373,7 +373,7 @@ body {
     font-size: 8px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: var(--text-hi);
     padding: 3px 7px;
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
@@ -383,7 +383,7 @@ body {
     color: #000;
     font-weight: 700;
 }
-.legend-toggle-btn:not(.active):hover { background: var(--bg-hover); }
+.legend-toggle-btn:not(.active):hover { background: var(--bg-hover); color: var(--cyan); }
 
 .legend-title {
     font-family: 'DM Mono', monospace;
@@ -2853,7 +2853,7 @@ function loadDemoData(data) {
 function initApp() {
     document.getElementById('status').innerHTML = '⏳ Loading demo data…';
 
-    // Try loading demo_data.json from same directory
+    // Load demo_data.json from same directory (place both files in the same folder)
     fetch('demo_data.json')
         .then(r => {
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
