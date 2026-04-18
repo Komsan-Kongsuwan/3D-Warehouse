@@ -2133,47 +2133,59 @@ document.addEventListener('click', e => {
 });
 
 function updateStats() {
-    const totalCustomers = Object.keys(customerCount).length;
-    const totalSlots     = cubes.length;
-    const totalOccupied  = Object.values(customerCount).reduce((s, c) => s + c, 0);
-    const util           = totalSlots > 0 ? (totalOccupied / totalSlots * 100).toFixed(1) : '0.0';
+    const totalSlots    = cubes.length;
+    const now           = new Date();
 
-    // Count unique item codes
-    const itemCodes = new Set();
-    locationMap.forEach(items => {
-        if (Array.isArray(items)) items.forEach(item => {
-            if (item.itemCode) itemCodes.add(item.itemCode);
-        });
-    });
+    const hasCustomerSel = selectedCustomers.size > 0;
+    const hasItemSel     = selectedItems.size > 0;
+    const hasSelection   = hasCustomerSel || hasItemSel;
 
-    // Aging buckets — parse DD/MM/YYYY dates
-    const now   = new Date();
-    const age   = { m3: 0, m6: 0, y1: 0, y2: 0, y2p: 0 };
+    // Determine which locations are in scope based on current selection
+    const itemLocs = hasItemSel ? getItemLocations() : null;
 
-    locationMap.forEach(items => {
-        if (!Array.isArray(items)) return;
+    function inScope(locKey, custName) {
+        if (!hasSelection) return true;
+        const passCust = !hasCustomerSel || selectedCustomers.has(custName);
+        const passItem = !hasItemSel     || (itemLocs && itemLocs.has(locKey));
+        return passCust && passItem;
+    }
+
+    // Collect scoped locations from locationMap
+    const scopedCustomers = new Set();
+    const scopedItemCodes = new Set();
+    const age = { m3: 0, m6: 0, y1: 0, y2: 0, y2p: 0 };
+    let scopedOccupied = 0;
+
+    locationMap.forEach((items, locKey) => {
+        if (!Array.isArray(items) || items.length === 0) return;
+        const custName = items[0].customer;
+        if (!inScope(locKey, custName)) return;
+
+        scopedOccupied++;
+        scopedCustomers.add(custName);
+
         items.forEach(item => {
-            if (!item.receivingDate) return;
-            const parts = item.receivingDate.split('/');
-            if (parts.length !== 3) return;
-            const d = new Date(+parts[2], +parts[1] - 1, +parts[0]);
-            if (isNaN(d)) return;
-            const months = (now - d) / (1000 * 60 * 60 * 24 * 30.44);
-            if      (months <= 3)  age.m3++;
-            else if (months <= 6)  age.m6++;
-            else if (months <= 12) age.y1++;
-            else if (months <= 24) age.y2++;
-            else                   age.y2p++;
+            if (item.itemCode) scopedItemCodes.add(item.itemCode);
+
+            const m = getAgeMonths(item.receivingDate);
+            if (m === null) return;
+            if      (m <= 3)  age.m3++;
+            else if (m <= 6)  age.m6++;
+            else if (m <= 12) age.y1++;
+            else if (m <= 24) age.y2++;
+            else               age.y2p++;
         });
     });
 
-    document.getElementById('sc-customers').textContent = totalCustomers || '—';
-    document.getElementById('sc-items').textContent     = itemCodes.size > 0 ? itemCodes.size.toLocaleString() : '—';
-    document.getElementById('sc-locations').textContent = totalSlots   > 0 ? totalSlots.toLocaleString()   : '—';
-    document.getElementById('sc-occupied').textContent  = totalOccupied > 0 ? totalOccupied.toLocaleString() : '—';
+    const util = totalSlots > 0 ? (scopedOccupied / totalSlots * 100).toFixed(1) : '0.0';
+    const hasAge = (age.m3 + age.m6 + age.y1 + age.y2 + age.y2p) > 0;
+
+    document.getElementById('sc-customers').textContent = scopedCustomers.size || '—';
+    document.getElementById('sc-items').textContent     = scopedItemCodes.size > 0 ? scopedItemCodes.size.toLocaleString() : '—';
+    document.getElementById('sc-locations').textContent = totalSlots   > 0 ? totalSlots.toLocaleString() : '—';
+    document.getElementById('sc-occupied').textContent  = scopedOccupied > 0 ? scopedOccupied.toLocaleString() : '—';
     document.getElementById('sc-util').textContent      = totalSlots   > 0 ? util + '%' : '—';
 
-    const hasAge = (age.m3 + age.m6 + age.y1 + age.y2 + age.y2p) > 0;
     document.getElementById('sc-3m').textContent  = hasAge ? age.m3.toLocaleString()  : '—';
     document.getElementById('sc-6m').textContent  = hasAge ? age.m6.toLocaleString()  : '—';
     document.getElementById('sc-1y').textContent  = hasAge ? age.y1.toLocaleString()  : '—';
@@ -2472,23 +2484,25 @@ function updateHighlights() {
 }
 
 function highlightCustomer(customer) {
-    selectedItems.clear(); // clear item selection when switching mode
+    selectedItems.clear();
     if (selectedCustomers.has(customer)) {
         selectedCustomers.delete(customer);
     } else {
         selectedCustomers.add(customer);
     }
     updateHighlights();
+    updateStats();
 }
 
 function highlightItem(itemName) {
-    selectedCustomers.clear(); // clear customer selection when switching mode
+    selectedCustomers.clear();
     if (selectedItems.has(itemName)) {
         selectedItems.delete(itemName);
     } else {
         selectedItems.add(itemName);
     }
     updateHighlights();
+    updateStats();
 }
 
 window.resetHighlight = function() {
@@ -2498,6 +2512,7 @@ window.resetHighlight = function() {
     document.querySelectorAll('.sc-age-card').forEach(c => c.classList.remove('active'));
     updateLegend();
     applyAllFilters();
+    updateStats();
 };
 
 // ---------------- CLICK INTERACTION ----------------
