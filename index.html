@@ -904,29 +904,26 @@ body.light .stat-card.util .sc-value { color: #0d5fa3; }
     white-space: nowrap;
     margin-bottom: 0;
 }
-/* Age filter toggle */
-.age-filter-wrap {
-    display: flex;
-    gap: 4px;
-    justify-content: flex-end;
-}
-.age-filter-btn {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    font-weight: 600;
-    padding: 3px 9px;
-    border-radius: 5px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    color: var(--text-lo);
+/* Clickable age stat cards */
+.sc-age-card {
     cursor: pointer;
     pointer-events: all;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
-    white-space: nowrap;
+    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
 }
-.age-filter-btn:hover { border-color: var(--cyan); color: var(--text-hi); }
-.age-filter-btn.active { background: #1a6aaa; border-color: #5bc8ff; color: #fff; }
-body.light .age-filter-btn.active { background: #0d5fa3; border-color: #0d5fa3; color: #fff; }
+.sc-age-card:hover {
+    transform: scale(1.06);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+    border-color: var(--border-lit);
+}
+.sc-age-card.active {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 10px rgba(0,200,255,0.3);
+    transform: scale(1.06);
+}
+body.light .sc-age-card.active {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 10px rgba(26,114,184,0.25);
+}
 
 /* ─── USAGE GUIDE (bottom-left viewport) ───────────────────── */
 #usage-guide {
@@ -1803,7 +1800,8 @@ function buildRack() {
     closeRowPanel();
     hoverMeshCache = null;  // force hover cache rebuild
     legendSearch   = '';    // reset search
-    ageFilter      = 'all'; // reset age filter
+    ageFilter      = 'all';
+    document.querySelectorAll('.sc-age-card').forEach(c => c.classList.remove('active'));
 
     document.getElementById('legend').innerHTML = '<b>📊 Customer Legend</b><hr>';
     Object.keys(customerCount).forEach(key => delete customerCount[key]);
@@ -2016,7 +2014,7 @@ function updateLegend() {
 
 // ---------------- STATS PANEL ----------------
 
-let ageFilter = 'all'; // 'all' | '1y' | '2y'
+let ageFilter = 'all'; // 'all' | '3m' | '6m' | '1y' | '2y' | '2yp'
 
 function parseReceivingDate(dateStr) {
     if (!dateStr) return null;
@@ -2032,35 +2030,70 @@ function getAgeMonths(dateStr) {
     return (Date.now() - d) / (1000 * 60 * 60 * 24 * 30.44);
 }
 
-// Returns Set of location keys that match the current ageFilter
+// Returns Set of location keys matching current ageFilter bucket
 function getAgeFilteredLocations() {
     if (ageFilter === 'all') return null;
-    const threshold = ageFilter === '1y' ? 12 : 24; // months
     const locs = new Set();
     locationMap.forEach((items, locKey) => {
         if (!Array.isArray(items)) return;
-        const hasOld = items.some(item => {
+        const matches = items.some(item => {
             const m = getAgeMonths(item.receivingDate);
-            return m !== null && m > threshold;
+            if (m === null) return false;
+            switch (ageFilter) {
+                case '3m':  return m <= 3;
+                case '6m':  return m > 3  && m <= 6;
+                case '1y':  return m > 6  && m <= 12;
+                case '2y':  return m > 12 && m <= 24;
+                case '2yp': return m > 24;
+                default:    return false;
+            }
         });
-        if (hasOld) locs.add(locKey);
+        if (matches) locs.add(locKey);
     });
     return locs;
 }
 
-function applyAgeFilter() {
-    const filteredLocs = getAgeFilteredLocations();
+// Single unified highlight function — combines customer, item, and age filters
+function applyAllFilters() {
+    const noCustomer = selectedCustomers.size === 0;
+    const noItem     = selectedItems.size === 0;
+    const noAge      = ageFilter === 'all';
+
     updateResetBtn();
 
-    if (!filteredLocs) {
-        // All — restore normal view
-        window.resetHighlight();
+    // Nothing selected — restore all
+    if (noCustomer && noItem && noAge) {
+        cubes.forEach(cg => {
+            cg.children.forEach(child => {
+                if (child.isMesh) {
+                    child.material.opacity = cg.userData.isOccupied ? 0.95 : 0.0;
+                    child.material.emissive?.setHex(0x000000);
+                } else if (child.isLineSegments) {
+                    child.material.opacity = 0.45;
+                    child.material.color.setHex(0x888888);
+                }
+            });
+        });
         return;
     }
 
-    // Highlight only cubes in filtered locations
+    const ageLocs    = noAge  ? null : getAgeFilteredLocations();
+    const itemLocs   = noItem ? null : getItemLocations();
+
     cubes.forEach(cg => {
-        const isSelected = filteredLocs.has(cg.userData.location);
+        const loc  = cg.userData.location;
+        const cust = cg.userData.customer;
+
+        // Customer filter: pass if no customer filter OR cube matches selected customer
+        const passCustomer = noCustomer || selectedCustomers.has(cust);
+        // Item filter: pass if no item filter OR location contains selected item
+        const passItem     = noItem     || (itemLocs && itemLocs.has(loc));
+        // Age filter: pass if no age filter OR location has old-enough inventory
+        const passAge      = noAge      || (ageLocs && ageLocs.has(loc));
+
+        // Must pass ALL active filters
+        const isSelected = passCustomer && passItem && passAge && cg.userData.isOccupied;
+
         cg.children.forEach(child => {
             if (child.isLineSegments) {
                 child.material.opacity = isSelected ? 0.9 : 0.45;
@@ -2068,23 +2101,35 @@ function applyAgeFilter() {
             } else if (child.isMesh) {
                 if (isSelected) {
                     child.material.opacity = 1.0;
-                    child.material.emissive.setHex(0x333333);
+                    child.material.emissive?.setHex(0x333333);
                 } else {
                     child.material.opacity = 0.0;
-                    child.material.emissive.setHex(0x000000);
+                    child.material.emissive?.setHex(0x000000);
                 }
             }
         });
     });
 }
 
-// Bind age filter buttons via delegation (buttons are in HTML after script)
+function applyAgeFilter() {
+    applyAllFilters();
+}
+
+// Age filter via clickable stat cards
 document.addEventListener('click', e => {
-    const btn = e.target.closest('.age-filter-btn');
-    if (!btn) return;
-    ageFilter = btn.dataset.age;
-    document.querySelectorAll('.age-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-    applyAgeFilter();
+    const card = e.target.closest('.sc-age-card');
+    if (!card) return;
+    const age = card.dataset.age;
+    // Toggle off if already active
+    if (ageFilter === age) {
+        ageFilter = 'all';
+    } else {
+        ageFilter = age;
+    }
+    // Update active state on all age cards
+    document.querySelectorAll('.sc-age-card').forEach(c =>
+        c.classList.toggle('active', c.dataset.age === ageFilter));
+    applyAllFilters();
 });
 
 function updateStats() {
@@ -2423,37 +2468,7 @@ function getItemLocations() {
 }
 
 function updateHighlights() {
-    const noCustomer = selectedCustomers.size === 0;
-    const noItem     = selectedItems.size === 0;
-
-    if (noCustomer && noItem) {
-        resetHighlight();
-        return;
-    }
-    updateResetBtn();
-
-    const itemLocs = noItem ? null : getItemLocations();
-
-    cubes.forEach(cubeGroup => {
-        const byCustomer = !noCustomer && selectedCustomers.has(cubeGroup.userData.customer);
-        const byItem     = !noItem     && itemLocs.has(cubeGroup.userData.location);
-        const isSelected = byCustomer || byItem;
-
-        cubeGroup.children.forEach(child => {
-            if (child.isLineSegments) {
-                child.material.opacity = isSelected ? 0.9 : 0.45;
-                child.material.color.setHex(isSelected ? 0x444444 : 0x888888);
-            } else if (child.isMesh) {
-                if (isSelected) {
-                    child.material.opacity = 1.0;
-                    child.material.emissive.setHex(0x333333);
-                } else {
-                    child.material.opacity = 0.0;
-                    child.material.emissive.setHex(0x000000);
-                }
-            }
-        });
-    });
+    applyAllFilters();
 }
 
 function highlightCustomer(customer) {
@@ -2479,24 +2494,10 @@ function highlightItem(itemName) {
 window.resetHighlight = function() {
     selectedCustomers.clear();
     selectedItems.clear();
-    // Reset age filter
     ageFilter = 'all';
-    document.querySelectorAll('.age-filter-btn').forEach(b =>
-        b.classList.toggle('active', b.dataset.age === 'all'));
+    document.querySelectorAll('.sc-age-card').forEach(c => c.classList.remove('active'));
     updateLegend();
-    updateResetBtn();
-
-    cubes.forEach(cubeGroup => {
-        cubeGroup.children.forEach(child => {
-            if (child.isLineSegments) {
-                child.material.opacity = 0.45;
-                child.material.color.setHex(0x888888);
-            } else if (child.isMesh) {
-                child.material.opacity = cubeGroup.userData.isOccupied ? 0.95 : 0.0;
-                child.material.emissive.setHex(0x000000);
-            }
-        });
-    });
+    applyAllFilters();
 };
 
 // ---------------- CLICK INTERACTION ----------------
@@ -2955,16 +2956,11 @@ canvas.addEventListener('mouseleave', () => {
     </div>
     <div class="stats-row">
         <div class="stat-card age-hdr"><span class="sc-label">Inventory<br>Age</span></div>
-        <div class="stat-card age-3m"><span class="sc-label">≤ 3 Months</span><span class="sc-value" id="sc-3m">—</span></div>
-        <div class="stat-card age-6m"><span class="sc-label">≤ 6 Months</span><span class="sc-value" id="sc-6m">—</span></div>
-        <div class="stat-card age-1y"><span class="sc-label">≤ 1 Year</span><span class="sc-value" id="sc-1y">—</span></div>
-        <div class="stat-card age-2y"><span class="sc-label">≤ 2 Years</span><span class="sc-value" id="sc-2y">—</span></div>
-        <div class="stat-card age-2yp"><span class="sc-label">&gt; 2 Years</span><span class="sc-value" id="sc-2yp">—</span></div>
-    </div>
-    <div class="age-filter-wrap">
-        <button class="age-filter-btn active" data-age="all">All</button>
-        <button class="age-filter-btn" data-age="1y">&gt; 1 Year</button>
-        <button class="age-filter-btn" data-age="2y">&gt; 2 Years</button>
+        <div class="stat-card age-3m sc-age-card" data-age="3m" title="Click to filter ≤ 3 months"><span class="sc-label">≤ 3 Months</span><span class="sc-value" id="sc-3m">—</span></div>
+        <div class="stat-card age-6m sc-age-card" data-age="6m" title="Click to filter ≤ 6 months"><span class="sc-label">≤ 6 Months</span><span class="sc-value" id="sc-6m">—</span></div>
+        <div class="stat-card age-1y sc-age-card" data-age="1y" title="Click to filter ≤ 1 year"><span class="sc-label">≤ 1 Year</span><span class="sc-value" id="sc-1y">—</span></div>
+        <div class="stat-card age-2y sc-age-card" data-age="2y" title="Click to filter ≤ 2 years"><span class="sc-label">≤ 2 Years</span><span class="sc-value" id="sc-2y">—</span></div>
+        <div class="stat-card age-2yp sc-age-card" data-age="2yp" title="Click to filter > 2 years"><span class="sc-label">&gt; 2 Years</span><span class="sc-value" id="sc-2yp">—</span></div>
     </div>
 </div>
 
