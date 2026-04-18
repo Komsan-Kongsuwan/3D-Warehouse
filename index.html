@@ -339,6 +339,13 @@ body {
 }
 
 /* ─── LEGEND ─────────────────────────────────────────── */
+#legend-controls {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 2px;
+}
 #legend {
     display: flex;
     flex-direction: column;
@@ -864,16 +871,21 @@ body.light .rp-bay-label { color: rgba(40,60,100,0.6); }
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 62px;
+    justify-content: center;
+    width: 76px;
+    height: 46px;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 .stat-card .sc-label {
     font-family: 'DM Mono', monospace;
-    font-size: 9.5px;
-    letter-spacing: 0.06em;
+    font-size: 9px;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text-dim);
     margin-bottom: 2px;
     white-space: nowrap;
+    text-align: center;
 }
 .stat-card .sc-value {
     font-family: 'Rajdhani', sans-serif;
@@ -893,9 +905,11 @@ body.light .stat-card.util .sc-value { color: #0d5fa3; }
 .stat-card.age-hdr {
     background: transparent;
     border-color: transparent;
-    min-width: unset;
-    padding: 5px 4px;
-    justify-content: flex-end;
+    width: auto;
+    height: 46px;
+    padding: 5px 6px;
+    align-items: flex-end;
+    justify-content: center;
 }
 .stat-card.age-hdr .sc-label {
     font-size: 8px;
@@ -903,6 +917,8 @@ body.light .stat-card.util .sc-value { color: #0d5fa3; }
     text-align: right;
     white-space: nowrap;
     margin-bottom: 0;
+    text-transform: none;
+    letter-spacing: 0;
 }
 /* Clickable age stat cards */
 .sc-age-card {
@@ -1278,12 +1294,11 @@ body.light #hover-tooltip {
         <hr class="divider">
 
         <!-- Legend -->
+        <div id="legend-controls">
+            <!-- toggle + count + search stay fixed, built by updateLegend -->
+        </div>
         <div id="legend">
-            <div class="legend-header">
-                <span class="legend-title">Customers</span>
-                <span class="legend-count-total" id="legendTotal"></span>
-            </div>
-            <div class="legend-empty">Upload DEMO.csv<br>to see customer data</div>
+            <div class="legend-empty">Upload inventory CSV<br>to see data</div>
         </div>
 
     </div>
@@ -1900,13 +1915,14 @@ function buildItemCount() {
 }
 
 function updateLegend() {
-    const legendDiv = document.getElementById('legend');
+    const legendDiv      = document.getElementById('legend');
+    const controlsDiv    = document.getElementById('legend-controls');
 
     const sortedCustomers = Object.entries(customerCount).sort((a, b) => b[1] - a[1]);
     const hasData = sortedCustomers.length > 0;
 
-    // Header with toggle
-    legendDiv.innerHTML = `
+    // ── Fixed controls (toggle + count + search) ──────────────
+    controlsDiv.innerHTML = `
         <div class="legend-header">
             <div class="legend-toggle-wrap">
                 <button class="legend-toggle-btn ${legendMode==='customer'?'active':''}" id="toggleCustomer">Customer</button>
@@ -1928,13 +1944,15 @@ function updateLegend() {
 
     // Bind search
     document.getElementById('legend-search').addEventListener('input', e => {
-        legendSearch = e.target.value;  // keep original case for display
-        const el = document.getElementById('legend-search');
-        const pos = el.selectionStart;
+        legendSearch = e.target.value;
+        const pos = e.target.selectionStart;
         updateLegend();
         const el2 = document.getElementById('legend-search');
         if (el2) { el2.focus(); el2.selectionStart = el2.selectionEnd = pos; }
     });
+
+    // ── Scrollable list ────────────────────────────────────────
+    legendDiv.innerHTML = '';
 
     if (!hasData) {
         legendDiv.innerHTML += `<div class="legend-empty">Upload inventory CSV<br>to see data</div>`;
@@ -2981,7 +2999,7 @@ canvas.addEventListener('mouseleave', () => {
         <div class="stat-card util"><span class="sc-label">Utilization</span><span class="sc-value" id="sc-util">—</span></div>
     </div>
     <div class="stats-row">
-        <div class="stat-card age-hdr"><span class="sc-label">Inventory<br>Age</span></div>
+        <div class="stat-card age-hdr"><span class="sc-label">Inventory Age<br>(Locations)</span></div>
         <div class="stat-card age-3m sc-age-card" data-age="3m" title="Click to filter ≤ 3 months"><span class="sc-label">≤ 3 Months</span><span class="sc-value" id="sc-3m">—</span></div>
         <div class="stat-card age-6m sc-age-card" data-age="6m" title="Click to filter ≤ 6 months"><span class="sc-label">≤ 6 Months</span><span class="sc-value" id="sc-6m">—</span></div>
         <div class="stat-card age-1y sc-age-card" data-age="1y" title="Click to filter ≤ 1 year"><span class="sc-label">≤ 1 Year</span><span class="sc-value" id="sc-1y">—</span></div>
