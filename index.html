@@ -86,7 +86,23 @@ body.light #themeToggle::after {
     background: #ffffff;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+#theme-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.theme-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.3s;
+    user-select: none;
+}
+.theme-label.active { color: var(--cyan); }
+
 
 body {
     overflow: hidden;
@@ -301,13 +317,18 @@ body {
     font-weight: 600;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s;
 }
-
-.reset-btn:hover {
+.reset-btn:hover:not(.no-selection) {
     background: var(--cyan-glow);
     border-color: var(--cyan);
     box-shadow: 0 0 14px rgba(0,200,255,0.2);
+}
+.reset-btn.no-selection {
+    cursor: default;
+    color: var(--text-dim);
+    border-color: var(--border);
+    pointer-events: none;
 }
 
 /* ─── DIVIDER ─────────────────────────────────────────── */
@@ -1218,7 +1239,10 @@ body.light #hover-tooltip {
     <!-- Header -->
     <div class="sidebar-header">
         <div class="sidebar-logo">
-            <button id="themeToggle" title="Toggle light / dark theme"></button>
+            <div id="theme-toggle-wrap">
+                <button id="themeToggle" title="Toggle light / dark theme"></button>
+                <span class="theme-label active" id="label-theme">Dark</span>
+            </div>
         </div>
         <div class="sidebar-sub">WAREHOUSE · 3D VIEW</div>
     </div>
@@ -1238,15 +1262,6 @@ body.light #hover-tooltip {
             <input type="file" id="layoutFile" accept=".xlsx" style="display:none;">
         </div>
 
-        <div class="upload-card" id="locCard">
-            <div class="upload-card-icon">🗂️</div>
-            <div class="upload-card-info">
-                <div class="upload-card-label">Locations.xlsx</div>
-                <div class="upload-card-filename" id="locFileName">Auto-generated from Layout</div>
-            </div>
-            <div class="upload-card-status"></div>
-            <input type="file" id="locFile" accept=".xlsx" style="display:none;">
-        </div>
 
         <div class="upload-card" id="csvCard">
             <div class="upload-card-icon">📋</div>
@@ -1259,8 +1274,8 @@ body.light #hover-tooltip {
         </div>
 
         <!-- Reset -->
-        <button id="resetBtn" class="reset-btn">
-            <span>⟳</span><span>Show All</span>
+        <button id="resetBtn" class="reset-btn no-selection">
+            <span id="resetBtnLabel">All Customers</span>
         </button>
 
         <hr class="divider">
@@ -1278,7 +1293,7 @@ body.light #hover-tooltip {
 
     <!-- Footer status -->
     <div class="sidebar-footer">
-        <div id="status">⏳ Ready — load Locations.xlsx first</div>
+        <div id="status">⏳ Upload Layout Template to get started</div>
     </div>
 </div><!-- end sidebar -->
 
@@ -1906,10 +1921,10 @@ function updateLegend() {
 
     // Bind toggle buttons
     document.getElementById('toggleCustomer').addEventListener('click', () => {
-        legendMode = 'customer'; legendSearch = ''; updateLegend();
+        legendMode = 'customer'; legendSearch = ''; updateLegend(); updateResetBtn();
     });
     document.getElementById('toggleItem').addEventListener('click', () => {
-        legendMode = 'item'; legendSearch = ''; updateLegend();
+        legendMode = 'item'; legendSearch = ''; updateLegend(); updateResetBtn();
     });
 
     // Bind search
@@ -2035,6 +2050,7 @@ function getAgeFilteredLocations() {
 
 function applyAgeFilter() {
     const filteredLocs = getAgeFilteredLocations();
+    updateResetBtn();
 
     if (!filteredLocs) {
         // All — restore normal view
@@ -2414,6 +2430,7 @@ function updateHighlights() {
         resetHighlight();
         return;
     }
+    updateResetBtn();
 
     const itemLocs = noItem ? null : getItemLocations();
 
@@ -2467,6 +2484,7 @@ window.resetHighlight = function() {
     document.querySelectorAll('.age-filter-btn').forEach(b =>
         b.classList.toggle('active', b.dataset.age === 'all'));
     updateLegend();
+    updateResetBtn();
 
     cubes.forEach(cubeGroup => {
         cubeGroup.children.forEach(child => {
@@ -2589,8 +2607,7 @@ function parseLayoutTemplate(file) {
 
             document.getElementById('layoutCard').classList.add('loaded');
             document.getElementById('layoutFileName').textContent = file.name;
-            document.getElementById('locCard').classList.add('loaded');
-            document.getElementById('locFileName').textContent = `${validLocations.size.toLocaleString()} locations generated`;
+            // Locations auto-generated from layout
 
             document.getElementById('status').innerHTML =
                 `<span class="stat-ok">✓</span> Layout loaded — <span class="stat-hi">${layoutRows.length}</span> rows · <span class="stat-hi">${validLocations.size.toLocaleString()}</span> locations generated`;
@@ -2679,17 +2696,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     parseLayoutTemplate(file);
 });
 
-document.getElementById('locCard').addEventListener('click', () => {
-    document.getElementById('locFile').click();
-});
-
-document.getElementById('locFile').addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    document.getElementById('locFileName').textContent = file.name;
-    document.getElementById('locCard').classList.add('loaded');
-    parseLocationsXlsx(file);
-});
+// Locations.xlsx upload removed — locations auto-generated from layout template
 
 // ---------------- CSV PARSING ----------------
 
@@ -2779,8 +2786,7 @@ function loadDemoData(data) {
 
         document.getElementById('layoutCard').classList.add('loaded');
         document.getElementById('layoutFileName').textContent = 'DEMO_LAYOUT.xlsx';
-        document.getElementById('locCard').classList.add('loaded');
-        document.getElementById('locFileName').textContent = `${validLocations.size.toLocaleString()} locations generated`;
+        // Locations auto-generated from layout
 
         // ── Inventory ───────────────────────────────────────────
         locationMap.clear();
@@ -2841,9 +2847,29 @@ const LIGHT_GRID  = [0x8aaac8, 0xb0c8dc];
 
 let isLightTheme = false;
 
+function updateResetBtn() {
+    const btn   = document.getElementById('resetBtn');
+    const label = document.getElementById('resetBtnLabel');
+    const hasSelection = selectedCustomers.size > 0 || selectedItems.size > 0 || ageFilter !== 'all';
+
+    if (hasSelection) {
+        btn.classList.remove('no-selection');
+        label.textContent = 'Clear Selection';
+    } else {
+        btn.classList.add('no-selection');
+        label.textContent = legendMode === 'item' ? 'All Items' : 'All Customers';
+    }
+}
+
+function updateThemeLabels() {
+    document.getElementById('label-theme').textContent = isLightTheme ? 'Light' : 'Dark';
+}
+updateThemeLabels();
+
 document.getElementById('themeToggle').addEventListener('click', () => {
     isLightTheme = !isLightTheme;
     document.body.classList.toggle('light', isLightTheme);
+    updateThemeLabels();
 
     // Update 3D scene background
     scene.background = new THREE.Color(isLightTheme ? LIGHT_SCENE : DARK_SCENE);
