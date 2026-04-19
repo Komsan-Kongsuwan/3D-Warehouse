@@ -2330,17 +2330,8 @@ function isolateRow(rowName) {
 
 function restoreAllRows() {
     isolatedRow = null;
-    cubes.forEach(cg => {
-        cg.children.forEach(child => {
-            if (child.isMesh) {
-                child.material.opacity = cg.userData.isOccupied ? 0.95 : 0.0;
-                child.material.emissive?.setHex(0x000000);
-            } else if (child.isLineSegments) {
-                child.material.opacity = 0.45;
-                child.material.color.setHex(0x888888);
-            }
-        });
-    });
+    // Reapply any active customer/item/age filter instead of resetting to full view
+    applyAllFilters();
     closeRowPanel();
     updateRowPickerActive();
 }
