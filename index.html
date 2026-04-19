@@ -1221,6 +1221,39 @@ body:not(.light) .loc-item-value.damaged { color: #ef5350; }
     font-size: 14px;
 }
 
+/* Summary card at bottom of location modal */
+.loc-summary-card {
+    background: linear-gradient(135deg, #1a3a6e 0%, #4a2080 100%);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+}
+body.light .loc-summary-card {
+    background: linear-gradient(135deg, #dce8f8 0%, #e8ddf8 100%);
+}
+.loc-summary-card .loc-item-label {
+    color: rgba(200,220,255,0.7);
+}
+body.light .loc-summary-card .loc-item-label { color: rgba(30,60,120,0.6); }
+.loc-summary-card .loc-item-value {
+    color: #fff;
+    font-size: 14px;
+}
+body.light .loc-summary-card .loc-item-value { color: #0f2a42; }
+.loc-summary-title {
+    grid-column: 1/-1;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+    opacity: 0.9;
+}
+body.light .loc-summary-title { color: #0f2a42; }
+
 #hover-tooltip {
     position: fixed;
     pointer-events: none;
@@ -2544,6 +2577,76 @@ function openLocModal(locationKey) {
                 </div>`;
             body.appendChild(card);
         });
+
+        // ── Summary card ─────────────────────────────────────
+        // Total quantity (sum all numeric stock values)
+        let totalQty = 0;
+        let qtyUnit  = '';
+        let oldestDate = null;
+        const damageSet = new Set();
+        const customerSet = new Set();
+
+        items.forEach(item => {
+            const qty = parseFloat(item.stock);
+            if (!isNaN(qty)) { totalQty += qty; qtyUnit = item.unit || ''; }
+            if (item.damageFlag) damageSet.add(item.damageFlag);
+            if (item.customer)   customerSet.add(item.customer);
+
+            const m = getAgeMonths(item.receivingDate);
+            if (m !== null) {
+                if (oldestDate === null || m > oldestDate.months) {
+                    oldestDate = { months: m, date: item.receivingDate };
+                }
+            }
+        });
+
+        // Damage summary
+        const hasHeld    = [...damageSet].some(f => f.toLowerCase() === 'held');
+        const hasDamaged = [...damageSet].some(f => f.toLowerCase() !== 'good' && f.toLowerCase() !== 'held' && f);
+        const damageLabel = hasDamaged ? 'Damaged' : hasHeld ? 'Held' : 'Good';
+        const damageClass = hasDamaged ? 'damaged' : hasHeld ? 'held' : 'good';
+
+        // Age label
+        const ageLabel = oldestDate
+            ? (() => {
+                const m = oldestDate.months;
+                if (m <= 3) return '0–3 Months';
+                if (m <= 6) return '3–6 Months';
+                if (m <= 12) return '6–12 Months';
+                if (m <= 24) return '1–2 Years';
+                return '> 2 Years';
+              })()
+            : '—';
+
+        const summary = document.createElement('div');
+        summary.className = 'loc-summary-card';
+        summary.innerHTML = `
+            <div class="loc-summary-title">📦 Summary</div>
+            <div class="loc-item-field">
+                <span class="loc-item-label">Total Items</span>
+                <span class="loc-item-value">${items.length}</span>
+            </div>
+            <div class="loc-item-field">
+                <span class="loc-item-label">Total Quantity</span>
+                <span class="loc-item-value">${totalQty > 0 ? totalQty.toLocaleString() + ' ' + qtyUnit : '—'}</span>
+            </div>
+            <div class="loc-item-field">
+                <span class="loc-item-label">Oldest Receive</span>
+                <span class="loc-item-value">${oldestDate ? oldestDate.date : '—'}</span>
+            </div>
+            <div class="loc-item-field">
+                <span class="loc-item-label">Inventory Age</span>
+                <span class="loc-item-value">${ageLabel}</span>
+            </div>
+            <div class="loc-item-field">
+                <span class="loc-item-label">Damage Status</span>
+                <span class="loc-item-value ${damageClass}">${damageLabel}</span>
+            </div>
+            <div class="loc-item-field">
+                <span class="loc-item-label">Customers</span>
+                <span class="loc-item-value">${customerSet.size}</span>
+            </div>`;
+        body.appendChild(summary);
     }
 
     document.getElementById('loc-modal-backdrop').style.display = 'block';
