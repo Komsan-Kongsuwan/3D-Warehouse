@@ -387,7 +387,28 @@ body {
 .legend-search-wrap {
     padding: 0 4px;
     margin-bottom: 2px;
+    position: relative;
+    display: flex;
+    align-items: center;
 }
+#legend-search {
+    flex: 1;
+}
+#legend-search-clear {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-lo);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    display: none;
+    transition: color 0.15s;
+}
+#legend-search-clear:hover { color: var(--text-hi); }
+#legend-search.has-value { padding-right: 20px; }
 .legend-toggle-wrap {
     display: flex;
     background: var(--bg-card);
@@ -1931,7 +1952,8 @@ function updateLegend() {
             <span class="legend-count-total" id="legendTotal"></span>
         </div>
         <div class="legend-search-wrap">
-            <input id="legend-search" type="text" placeholder="Search…" value="${legendSearch}">
+            <input id="legend-search" type="text" placeholder="Search…" value="${legendSearch}" class="${legendSearch ? 'has-value' : ''}">
+            <button id="legend-search-clear" style="${legendSearch ? 'display:block' : 'display:none'}">✕</button>
         </div>`;
 
     // Bind toggle buttons
@@ -1949,6 +1971,13 @@ function updateLegend() {
         updateLegend();
         const el2 = document.getElementById('legend-search');
         if (el2) { el2.focus(); el2.selectionStart = el2.selectionEnd = pos; }
+    });
+
+    // Bind clear button
+    document.getElementById('legend-search-clear').addEventListener('click', () => {
+        legendSearch = '';
+        updateLegend();
+        document.getElementById('legend-search')?.focus();
     });
 
     // ── Scrollable list ────────────────────────────────────────
@@ -2223,11 +2252,34 @@ function updateStats() {
 
 // ---------------- ROW PICKER PANEL ----------------
 
+function getSelectedRows() {
+    // Returns Set of row names that contain selected customers/items, or null if no selection
+    const hasCustomerSel = selectedCustomers.size > 0;
+    const hasItemSel     = selectedItems.size > 0;
+    if (!hasCustomerSel && !hasItemSel) return null;
+
+    const itemLocs = hasItemSel ? getItemLocations() : null;
+    const rows = new Set();
+
+    cubes.forEach(cg => {
+        if (!cg.userData.isOccupied) return;
+        const passCust = !hasCustomerSel || selectedCustomers.has(cg.userData.customer);
+        const passItem = !hasItemSel     || (itemLocs && itemLocs.has(cg.userData.location));
+        if (passCust && passItem) rows.add(cg.userData.zone);
+    });
+    return rows;
+}
+
 function buildRowPicker() {
     const picker = document.getElementById('row-picker');
     picker.innerHTML = '';
 
+    const matchedRows = getSelectedRows(); // null = show all
+
     allLayoutRows.forEach(rowName => {
+        // Hide badge if there's a selection and this row has no match
+        if (matchedRows && !matchedRows.has(rowName)) return;
+
         const badge = document.createElement('div');
         badge.className = 'rp-badge' + (isolatedRow === rowName ? ' active' : '');
         badge.textContent = rowName;
@@ -2521,6 +2573,7 @@ function highlightCustomer(customer) {
     }
     updateHighlights();
     updateStats();
+    buildRowPicker();
 }
 
 function highlightItem(itemName) {
@@ -2532,6 +2585,7 @@ function highlightItem(itemName) {
     }
     updateHighlights();
     updateStats();
+    buildRowPicker();
 }
 
 window.resetHighlight = function() {
@@ -2543,6 +2597,7 @@ window.resetHighlight = function() {
     updateLegend();
     applyAllFilters();
     updateStats();
+    buildRowPicker();
 };
 
 // ---------------- CLICK INTERACTION ----------------
