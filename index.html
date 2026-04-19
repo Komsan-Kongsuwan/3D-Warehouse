@@ -2537,6 +2537,7 @@ function highlightItem(itemName) {
 window.resetHighlight = function() {
     selectedCustomers.clear();
     selectedItems.clear();
+    legendSearch = '';
     ageFilter = 'all';
     document.querySelectorAll('.sc-age-card').forEach(c => c.classList.remove('active'));
     updateLegend();
