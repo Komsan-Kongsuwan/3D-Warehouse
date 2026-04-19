@@ -2210,6 +2210,7 @@ function applyAllFilters() {
 
 function applyAgeFilter() {
     applyAllFilters();
+    buildRowPicker();
 }
 
 // Age filter via clickable stat cards
@@ -2301,19 +2302,22 @@ function updateStats() {
 // ---------------- ROW PICKER PANEL ----------------
 
 function getSelectedRows() {
-    // Returns Set of row names that contain selected customers/items, or null if no selection
+    // Returns Set of row names that contain matching cubes, or null if no filter active
     const hasCustomerSel = selectedCustomers.size > 0;
     const hasItemSel     = selectedItems.size > 0;
-    if (!hasCustomerSel && !hasItemSel) return null;
+    const hasAgeSel      = ageFilter !== 'all';
+    if (!hasCustomerSel && !hasItemSel && !hasAgeSel) return null;
 
     const itemLocs = hasItemSel ? getItemLocations() : null;
+    const ageLocs  = hasAgeSel  ? getAgeFilteredLocations() : null;
     const rows = new Set();
 
     cubes.forEach(cg => {
         if (!cg.userData.isOccupied) return;
         const passCust = !hasCustomerSel || selectedCustomers.has(cg.userData.customer);
         const passItem = !hasItemSel     || (itemLocs && itemLocs.has(cg.userData.location));
-        if (passCust && passItem) rows.add(cg.userData.zone);
+        const passAge  = !hasAgeSel      || (ageLocs  && ageLocs.has(cg.userData.location));
+        if (passCust && passItem && passAge) rows.add(cg.userData.zone);
     });
     return rows;
 }
