@@ -438,7 +438,7 @@ body {
     background: none;
     border: none;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -464,7 +464,7 @@ body {
 
 .legend-count-total {
     font-family: 'DM Mono', monospace;
-    font-size: 9px;
+    font-size: 10px;
     color: var(--cyan-dim);
 }
 
@@ -1970,13 +1970,14 @@ let legendMode   = 'customer'; // 'customer' | 'item'
 let legendSearch = '';         // current search filter
 
 function buildItemCount() {
-    // Count items per item name — rack locations only (filtered by validLocations)
+    // Count unique item codes — rack locations only (filtered by validLocations)
+    // Uses itemCode as key to match the "Item Codes" stat card count
     const itemCount = {};
     locationMap.forEach((items, locKey) => {
         if (!Array.isArray(items)) return;
         if (validLocations.size > 0 && !validLocations.has(locKey)) return;
         items.forEach(item => {
-            const key = item.itemName || item.itemCode || '(no name)';
+            const key = item.itemCode || item.itemName || '(no code)';
             itemCount[key] = (itemCount[key] || 0) + 1;
         });
     });
