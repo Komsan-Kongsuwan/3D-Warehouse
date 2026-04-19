@@ -644,7 +644,7 @@ body.light #viewport-label .vp-text {
 }
 #dev-credit {
     position: fixed;
-    bottom: 110px;
+    bottom: 28px;
     right:  18px;
     z-index: 9000;
     text-align: right;
@@ -965,7 +965,7 @@ body.light .sc-age-card.active {
 /* ─── USAGE GUIDE (bottom-left viewport) ───────────────────── */
 #usage-guide {
     position: fixed;
-    bottom: 110px;
+    bottom: 28px;
     left: 254px;
     z-index: 9000;
     display: flex;
@@ -1040,11 +1040,6 @@ body.light #demo-notice .dn-title { color: #0d5fa3; }
 body.light #demo-notice .dn-text { color: rgba(30,60,100,0.7); }
 
 #row-picker {
-    position: fixed;
-    bottom: 14px;
-    left: 240px;
-    right: 14px;
-    z-index: 500;
     background: var(--bg-panel);
     border-top: 1px solid var(--border);
     padding: 5px 8px;
@@ -1053,6 +1048,7 @@ body.light #demo-notice .dn-text { color: rgba(30,60,100,0.7); }
     gap: 4px;
     max-height: calc(3 * 26px + 4 * 4px + 10px);
     overflow: hidden;
+    flex-shrink: 0;
 }
 .rp-badge {
     font-family: 'DM Mono', monospace;
@@ -1342,6 +1338,7 @@ body.light #hover-tooltip {
             <div id="vscroll-inner"></div>
         </div>
     </div>
+    <div id="row-picker"></div>
     <div id="hscroll-track" class="scroll-track">
         <div id="hscroll-inner"></div>
     </div>
@@ -3071,9 +3068,6 @@ canvas.addEventListener('mouseleave', () => {
     <div class="dn-title">⚠ Sample Data</div>
     <div class="dn-text">This layout and inventory is for demo purposes only.<br>Upload your own files in the sidebar to visualize your warehouse.</div>
 </div>
-
-<!-- Row picker panel -->
-<div id="row-picker"></div>
 
 <!-- Viewport top-left label -->
 <div id="viewport-label">
