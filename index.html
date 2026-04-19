@@ -2398,20 +2398,22 @@ function openRowPanel(rowName) {
 
     // Build location→customer map for this row
     const locToCustomer = new Map();
-    // Build locToCustomer — respecting active customer/item filter
+    // Build locToCustomer — respecting active customer/item/age filter
     const hasCustomerSel = selectedCustomers.size > 0;
     const hasItemSel     = selectedItems.size > 0;
-    const itemLocs       = hasItemSel ? getItemLocations() : null;
+    const hasAgeSel      = ageFilter !== 'all';
+    const itemLocs       = hasItemSel ? getItemLocations()        : null;
+    const ageLocs        = hasAgeSel  ? getAgeFilteredLocations() : null;
 
     cubes.forEach(cg => {
         if (cg.userData.zone === rowName) {
             const items    = locationMap.get(cg.userData.location);
             const customer = items ? items[0].customer : cg.userData.customer;
 
-            // Check if this location passes current filter
-            const passCust = !hasCustomerSel || selectedCustomers.has(customer);
-            const passItem = !hasItemSel     || (itemLocs && itemLocs.has(cg.userData.location));
-            const passFilter = passCust && passItem;
+            const passCust   = !hasCustomerSel || selectedCustomers.has(customer);
+            const passItem   = !hasItemSel     || (itemLocs && itemLocs.has(cg.userData.location));
+            const passAge    = !hasAgeSel      || (ageLocs  && ageLocs.has(cg.userData.location));
+            const passFilter = passCust && passItem && passAge;
 
             locToCustomer.set(cg.userData.location, {
                 customer:   passFilter ? customer : null,
