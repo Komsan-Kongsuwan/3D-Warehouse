@@ -2227,7 +2227,7 @@ document.addEventListener('click', e => {
     // Update active state on all age cards
     document.querySelectorAll('.sc-age-card').forEach(c =>
         c.classList.toggle('active', c.dataset.age === ageFilter));
-    applyAllFilters();
+    applyAgeFilter();
 });
 
 function updateStats() {
