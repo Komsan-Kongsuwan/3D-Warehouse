@@ -1970,16 +1970,21 @@ let legendMode   = 'customer'; // 'customer' | 'item'
 let legendSearch = '';         // current search filter
 
 function buildItemCount() {
-    // Count unique item codes — rack locations only (filtered by validLocations)
-    // Uses itemCode as key to match the "Item Codes" stat card count
-    const itemCount = {};
+    // Count unique rack locations per item code (matches customerCount logic)
+    const itemLocs = {}; // itemCode → Set of locKeys
     locationMap.forEach((items, locKey) => {
         if (!Array.isArray(items)) return;
         if (validLocations.size > 0 && !validLocations.has(locKey)) return;
         items.forEach(item => {
             const key = item.itemCode || item.itemName || '(no code)';
-            itemCount[key] = (itemCount[key] || 0) + 1;
+            if (!itemLocs[key]) itemLocs[key] = new Set();
+            itemLocs[key].add(locKey);
         });
+    });
+    // Convert Sets to counts
+    const itemCount = {};
+    Object.entries(itemLocs).forEach(([key, locs]) => {
+        itemCount[key] = locs.size;
     });
     return itemCount;
 }
