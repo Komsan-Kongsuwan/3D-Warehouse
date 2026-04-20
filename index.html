@@ -2683,8 +2683,8 @@ function getItemLocations() {
         if (!Array.isArray(items)) return;
         if (validLocations.size > 0 && !validLocations.has(locKey)) return;
         items.forEach(item => {
-            const name = item.itemName || item.itemCode || '';
-            if (selectedItems.has(name)) locs.add(locKey);
+            const key = item.itemCode || item.itemName || '';
+            if (selectedItems.has(key)) locs.add(locKey);
         });
     });
     return locs;
