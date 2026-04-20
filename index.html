@@ -465,7 +465,7 @@ body {
 .legend-count-total {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
-    color: var(--cyan-dim);
+    color: var(--text-mid);
 }
 
 .legend-empty {
@@ -1187,7 +1187,7 @@ body:not(.light) .loc-item-card { background: #1e2736; border-left-color: #7b4fc
     color: #3a1070;
     margin-bottom: 10px;
 }
-body:not(.light) .loc-item-title { color: #b090f0; }
+body:not(.light) .loc-item-title { color: #c8a8ff; }
 .loc-item-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1196,18 +1196,18 @@ body:not(.light) .loc-item-title { color: #b090f0; }
 .loc-item-field { display: flex; flex-direction: column; gap: 2px; }
 .loc-item-label {
     font-size: 10px;
-    color: #999;
+    color: #888;
     font-family: 'DM Mono', monospace;
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-body:not(.light) .loc-item-label { color: #556; }
+body:not(.light) .loc-item-label { color: #8aaccc; }
 .loc-item-value {
     font-size: 13px;
     font-weight: 600;
-    color: #222;
+    color: #1a1a2e;
 }
-body:not(.light) .loc-item-value { color: #ccd; }
+body:not(.light) .loc-item-value { color: #e8f2ff; }
 .loc-item-value.good    { color: #1a7a3a; }
 .loc-item-value.held    { color: #c47a00; }
 .loc-item-value.damaged { color: #b01020; }
@@ -2585,7 +2585,8 @@ function openLocModal(locationKey) {
             body.appendChild(card);
         });
 
-        // ── Summary card ─────────────────────────────────────
+        // ── Summary card — only show when more than 1 item ──
+        if (items.length > 1) {
         // Total quantity (sum all numeric stock values)
         let totalQty = 0;
         let qtyUnit  = '';
@@ -2654,6 +2655,7 @@ function openLocModal(locationKey) {
                 <span class="loc-item-value">${customerSet.size}</span>
             </div>`;
         body.appendChild(summary);
+        } // end if items.length > 1
     }
 
     document.getElementById('loc-modal-backdrop').style.display = 'block';
