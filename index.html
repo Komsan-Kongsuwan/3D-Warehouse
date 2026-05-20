@@ -1063,12 +1063,17 @@ body.light #demo-notice .dn-text { color: rgba(30,60,100,0.7); }
     border-top: 1px solid var(--border);
     padding: 5px 8px;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
-    max-height: calc(3 * 26px + 4 * 4px + 10px);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-lit) transparent;
 }
+#row-picker::-webkit-scrollbar { height: 4px; }
+#row-picker::-webkit-scrollbar-track { background: transparent; }
+#row-picker::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 2px; }
 .rp-badge {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
@@ -1313,6 +1318,7 @@ body.light #hover-tooltip {
 .front-badge { color: var(--green); font-weight: bold; }
 .back-badge  { color: var(--amber); font-weight: bold; }
 </style>
+<script>const DEMO_LAYOUT=[{"rowName":"D13","xPos":1108.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":26,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D12","xPos":1082.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D11","xPos":1069.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D10","xPos":1043.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D9","xPos":1030.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D8","xPos":1004.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D7","xPos":991.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D6","xPos":965.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D5","xPos":952.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D4","xPos":926.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D3","xPos":913.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D2","xPos":887.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"D1","xPos":874.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B16","xPos":848.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B15","xPos":835.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B14","xPos":809.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B13","xPos":796.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B12","xPos":770.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B11","xPos":757.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B10","xPos":731.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B9","xPos":718.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B8","xPos":692.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B7","xPos":679.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B6","xPos":653.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B5","xPos":640.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B4","xPos":614.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B3","xPos":601.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B2","xPos":575.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"B1","xPos":562.0,"zStart":400.0,"aisleGroup":"50","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A27","xPos":512.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A26","xPos":486.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A25","xPos":473.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A24","xPos":447.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A23","xPos":434.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A22","xPos":408.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A21","xPos":395.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A20","xPos":369.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A19","xPos":356.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A18","xPos":330.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A17","xPos":317.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A16","xPos":291.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A15","xPos":278.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A14","xPos":252.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A13","xPos":239.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A12","xPos":213.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A11","xPos":200.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A10","xPos":174.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A9","xPos":161.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A8","xPos":135.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A7","xPos":122.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A6","xPos":96.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A5","xPos":83.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A4","xPos":57.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A3","xPos":44.0,"zStart":400.0,"aisleGroup":"26","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A2","xPos":18.0,"zStart":400.0,"aisleGroup":"13","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"A1","xPos":5.0,"zStart":400.0,"aisleGroup":"A1","aisleSide":"Single","maxBays":28,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C12","xPos":770.0,"zStart":200.0,"aisleGroup":"C12","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C11","xPos":757.0,"zStart":200.0,"aisleGroup":"C11","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C10","xPos":731.0,"zStart":200.0,"aisleGroup":"C10","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C9","xPos":718.0,"zStart":200.0,"aisleGroup":"C9","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C8","xPos":692.0,"zStart":200.0,"aisleGroup":"C8","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C7","xPos":679.0,"zStart":200.0,"aisleGroup":"C7","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C6","xPos":653.0,"zStart":200.0,"aisleGroup":"C6","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C5","xPos":640.0,"zStart":200.0,"aisleGroup":"C5","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C4","xPos":614.0,"zStart":200.0,"aisleGroup":"C4","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C3","xPos":601.0,"zStart":200.0,"aisleGroup":"C3","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C2","xPos":575.0,"zStart":200.0,"aisleGroup":"C2","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"C1","xPos":562.0,"zStart":200.0,"aisleGroup":"C1","aisleSide":"Single","maxBays":22,"maxLevels":6,"orientation":90,"locPattern":"{row}-{level}-{bay}","palletsPerLevel":1,"type":"rack"},{"rowName":"E21","xPos":201.0,"zStart":373.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E20","xPos":201.0,"zStart":365.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E19","xPos":201.0,"zStart":357.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E18","xPos":201.0,"zStart":349.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E17","xPos":201.0,"zStart":341.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E16","xPos":201.0,"zStart":333.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E15","xPos":201.0,"zStart":325.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E14","xPos":201.0,"zStart":317.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E13","xPos":201.0,"zStart":309.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E12","xPos":201.0,"zStart":301.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E11","xPos":201.0,"zStart":293.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E10","xPos":201.0,"zStart":285.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E9","xPos":201.0,"zStart":277.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E8","xPos":201.0,"zStart":269.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E7","xPos":201.0,"zStart":261.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E6","xPos":201.0,"zStart":253.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E5","xPos":201.0,"zStart":245.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E4","xPos":201.0,"zStart":237.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E3","xPos":201.0,"zStart":229.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E2","xPos":201.0,"zStart":221.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"E1","xPos":201.0,"zStart":213.0,"aisleGroup":"8","aisleSide":"Single","maxBays":34,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F21","xPos":1100.0,"zStart":373.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F20","xPos":1100.0,"zStart":365.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F19","xPos":1100.0,"zStart":357.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F18","xPos":1100.0,"zStart":349.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F17","xPos":1100.0,"zStart":341.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F16","xPos":1100.0,"zStart":333.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F15","xPos":1100.0,"zStart":325.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F14","xPos":1100.0,"zStart":317.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F13","xPos":1100.0,"zStart":309.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F12","xPos":1100.0,"zStart":301.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F11","xPos":1100.0,"zStart":293.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F10","xPos":1100.0,"zStart":285.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F9","xPos":1100.0,"zStart":277.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F8","xPos":1100.0,"zStart":269.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F7","xPos":1100.0,"zStart":261.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F6","xPos":1100.0,"zStart":253.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F5","xPos":1100.0,"zStart":245.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F4","xPos":1100.0,"zStart":237.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F3","xPos":1100.0,"zStart":229.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F2","xPos":1100.0,"zStart":221.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"F1","xPos":1100.0,"zStart":213.0,"aisleGroup":"8","aisleSide":"Single","maxBays":12,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-10","xPos":-5.0,"zStart":373.0,"aisleGroup":"NG1-10","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-9","xPos":-5.0,"zStart":365.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-8","xPos":-5.0,"zStart":357.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-7","xPos":-5.0,"zStart":349.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-6","xPos":-5.0,"zStart":341.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-5","xPos":-5.0,"zStart":333.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-4","xPos":-5.0,"zStart":325.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-3","xPos":-5.0,"zStart":317.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-2","xPos":-5.0,"zStart":309.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG1-1","xPos":-5.0,"zStart":301.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-10","xPos":820.0,"zStart":373.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-9","xPos":820.0,"zStart":365.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-8","xPos":820.0,"zStart":357.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-7","xPos":820.0,"zStart":349.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-6","xPos":820.0,"zStart":341.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-5","xPos":820.0,"zStart":333.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-4","xPos":820.0,"zStart":325.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-3","xPos":820.0,"zStart":317.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-2","xPos":820.0,"zStart":309.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"},{"rowName":"NG2-1","xPos":820.0,"zStart":301.0,"aisleGroup":"8","aisleSide":"Single","maxBays":10,"maxLevels":1,"orientation":0,"locPattern":"{row}-{bay}","palletsPerLevel":1,"type":"floor"}];</script>
 </head>
 <body>
 
@@ -1443,11 +1449,17 @@ let MAX_LEVEL = 7;
 // Rack geometry constants (not layout-dependent)
 const CUBE_WIDTH    = 12.0;
 const CUBE_HEIGHT   = 8.0;
-const CUBE_DEPTH    = 8.0;
+const CUBE_DEPTH    = 8.0;   // rack depth (Z dimension)
 const X_SCALE       = 13.0;
 const BAY_SPACING   = CUBE_DEPTH;
 const LEVEL_SPACING = 8.0;
 const EMPTY_COLOR   = 0xcccccc;
+
+// Floor pallet constants — scale: 1m = 2.54 units, 1 layer fixed, width 70% of original
+const PALLET_W       = 6.0;  // footprint width
+const PALLET_DEPTH   = 8.0;  // footprint depth
+const PALLET_SPACING = 9.2;  // center-to-center with gap
+const PALLET_HEIGHT  = 6.0;  // cube height
 
 // ---------------- LOCATION DATA ----------------
 // Declared here so buildLayoutFromConfig() can populate rowMaxData immediately
@@ -1537,10 +1549,23 @@ function buildLayoutFromConfig(layoutRows) {
             aisleSide:       r.aisleSide   || 'Single',
             orientation:     (r.orientation !== undefined) ? Number(r.orientation) : 90,
             locPattern:      pat,
+            type:            (r.type && String(r.type).trim().toLowerCase() === 'floor')
+                               ? 'floor' : 'rack',
         });
         allLayoutRows.push(r.rowName);
         if (r.maxBays   > maxBayAll)   maxBayAll   = r.maxBays;
         if (r.maxLevels > maxLevelAll) maxLevelAll = r.maxLevels;
+    });
+
+    // Sort rows naturally: letter prefix A→Z, then number 1→99
+    allLayoutRows.sort((a, b) => {
+        const pa = a.match(/^([A-Za-z]+)(\d+)$/);
+        const pb = b.match(/^([A-Za-z]+)(\d+)$/);
+        if (pa && pb) {
+            if (pa[1] !== pb[1]) return pa[1].localeCompare(pb[1]);
+            return parseInt(pa[2]) - parseInt(pb[2]);
+        }
+        return a.localeCompare(b, undefined, { numeric: true });
     });
 
     MAX_BAY   = maxBayAll;
@@ -1559,8 +1584,8 @@ scene.background = new THREE.Color(0x11151c);
 // Warehouse X centre ≈ col23 × 13 ≈ 300
 // Warehouse Z range: K-S front (~50) to A-Z6 back (~490), centre ≈ 270
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 20000);
-camera.position.set(-250, 420, -180);  // Off to the left-front, elevated — strong perspective angle
-camera.lookAt(320, 30, 320);            // Look toward the far back-right corner of the warehouse
+camera.position.set(320, 280, -500);
+camera.lookAt(320, 0, 320);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -1585,7 +1610,7 @@ window.addEventListener("resize", () => {
 
 // Orbit Controls - target warehouse centre
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.target.set(320, 30, 320);
+controls.target.set(320, 0, 320);
 controls.enableDamping = false;
 controls.rotateSpeed   = 0.12;
 controls.zoomSpeed     = 2.5;
@@ -1617,7 +1642,7 @@ document.getElementById('vscroll-inner').style.height = V_INNER_PX + 'px';
 function initScrollbars() {
     const ht = document.getElementById('hscroll-track');
     const vt = document.getElementById('vscroll-track');
-    ht.scrollLeft = (H_INNER_PX - ht.offsetWidth)  / 2;
+    ht.scrollLeft = (H_INNER_PX - ht.offsetWidth) * 0.26;
     vt.scrollTop  = (V_INNER_PX - vt.offsetHeight) / 2;
 }
 
@@ -1765,12 +1790,13 @@ function getCustomerColor(customer) {
 
 // ---------------- CREATE CUBE WITH BORDER ----------------
 
-function createRackCube(color, isOccupied, cubeH, cubeW) {
+function createRackCube(color, isOccupied, cubeH, cubeW, cubeD) {
     const h = cubeH || CUBE_HEIGHT;
     const w = cubeW || CUBE_WIDTH;
+    const d = cubeD || CUBE_DEPTH;
     const group = new THREE.Group();
 
-    const mainGeo = new THREE.BoxGeometry(w - 0.2, h - 0.2, CUBE_DEPTH - 0.2);
+    const mainGeo = new THREE.BoxGeometry(w - 0.2, h - 0.2, d - 0.2);
     const mainMat = new THREE.MeshStandardMaterial({
         color: isOccupied ? color : 0xffffff,
         transparent: true,
@@ -1787,7 +1813,7 @@ function createRackCube(color, isOccupied, cubeH, cubeW) {
 
     // Edge outline
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.45 });
-    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, CUBE_DEPTH));
+    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d));
     const line = new THREE.LineSegments(edges, edgeMat);
     group.add(line);
 
@@ -1857,22 +1883,7 @@ function createFloorLabel(text, x, z, bgColor, textColor) {
 function buildLabels() {
     floorLabels.forEach(l => scene.remove(l));
     floorLabels.length = 0;
-
-    const LABEL_BG = 'rgba(26,114,184,0.92)';
-    const LABEL_TC = '#ffffff';
-
-    // Place each label just in front of bay 1 (Z = zStart - 10) at the row's X position
-    allLayoutRows.forEach(rowName => {
-        const geo = rowGeometry.get(rowName);
-        if (!geo) return;
-        // For Z-oriented rows: label in front of bay 1 (Z-offset)
-        // For X-oriented rows: label to the left of bay 1 (X-offset)
-        const labelX = (geo.orientation === 0) ? geo.xPos - 10 : geo.xPos;
-        const labelZ = (geo.orientation === 0) ? geo.zStart     : geo.zStart - 10;
-        const mesh = createFloorLabel(rowName, labelX, labelZ, LABEL_BG, LABEL_TC);
-        scene.add(mesh);
-        floorLabels.push(mesh);
-    });
+    // Row labels removed
 }
 
 // ---------------- BUILD RACK FUNCTION ----------------
@@ -1899,17 +1910,16 @@ function buildRack() {
         const geo = rowGeometry.get(rowName);
         if (!geo) return;
 
-        const { xPos, zStart, maxBay, maxLevel, palletsPerLevel, orientation, locPattern } = geo;
-        const ppl     = palletsPerLevel || 1;
-        const along_x = (orientation === 0);
+        const { xPos, zStart, maxBay, maxLevel, palletsPerLevel, orientation, locPattern, type } = geo;
+        const ppl      = palletsPerLevel || 1;
+        const along_x  = (orientation === 0);
+        const isFloor  = (type === 'floor');
 
-        const levelSpacing = (MAX_LEVEL * LEVEL_SPACING) / maxLevel;
+        // Dimensions — floor pallets use fixed pallet scale, rack uses dynamic level spacing
+        const spacing  = isFloor ? PALLET_SPACING : BAY_SPACING;
+        const cubeW    = isFloor ? PALLET_W       : CUBE_WIDTH;
+        const levelSpacing = isFloor ? PALLET_HEIGHT : (MAX_LEVEL * LEVEL_SPACING) / maxLevel;
         const cubeH        = levelSpacing;
-
-        // PPL does NOT change rack geometry — it only changes how location IDs are assigned.
-        // Physical appearance: maxBay × PPL total pallet slots, each CUBE_WIDTH wide,
-        // spaced BAY_SPACING apart — identical to a PPL=1 row with (maxBay × PPL) bays.
-        // slot = (bay-1)*PPL + pallet → placed at slot * BAY_SPACING (same as PPL=1)
 
         for (let bay = 1; bay <= maxBay; bay++) {
             for (let level = 1; level <= maxLevel; level++) {
@@ -1918,7 +1928,7 @@ function buildRack() {
                     const locationKey = makeLocKey(locPattern, rowName, level, bay, maxBay, pallet, ppl);
                     if (validLocations.size > 0 && !validLocations.has(locationKey)) continue;
 
-                    const items    = locationMap.get(locationKey); // array or undefined
+                    const items    = locationMap.get(locationKey);
                     const customer = items ? items[0].customer : null;
                     const color    = customer ? getCustomerColor(customer) : EMPTY_COLOR;
                     if (customer) {
@@ -1927,18 +1937,25 @@ function buildRack() {
                     }
 
                     const slot = (bay - 1) * ppl + pallet;
-                    const cx = along_x ? xPos + slot * BAY_SPACING : xPos;
-                    const cz = along_x ? zStart                     : zStart + slot * BAY_SPACING;
+                    const cx = along_x ? xPos + slot * spacing : xPos;
+                    const cz = along_x ? zStart                : zStart + slot * spacing;
 
-                    const cubeGroup = createRackCube(color, !!customer, cubeH, CUBE_WIDTH);
-                    cubeGroup.position.set(cx, level * levelSpacing, cz);
+                    // Floor pallets sit on ground (y = height/2), rack levels stack upward
+                    const yPos = isFloor ? PALLET_HEIGHT / 2 : level * levelSpacing;
+
+                    // Floor pallets: square footprint using PALLET_DEPTH, rack: standard CUBE_DEPTH
+                    const cubeD = isFloor ? PALLET_DEPTH : CUBE_DEPTH;
+                    const cubeGroup = createRackCube(color, !!customer, cubeH, cubeW, cubeD);
+                    if (along_x) cubeGroup.rotation.y = Math.PI / 2;
+                    cubeGroup.position.set(cx, yPos, cz);
                     cubeGroup.userData = {
                         location:   locationKey,
                         customer:   customer || null,
                         zone:       rowName,
                         level, bay, pallet,
                         isOccupied: !!customer,
-                        rowType:    'zone'
+                        rowType:    isFloor ? 'floor' : 'zone',
+                        type:       isFloor ? 'floor' : 'rack',
                     };
                     scene.add(cubeGroup);
                     cubes.push(cubeGroup);
@@ -2048,7 +2065,8 @@ function updateLegend() {
         const filtered = legendSearch
             ? sortedCustomers.filter(([c]) => c.toLowerCase().includes(legendSearch.toLowerCase()))
             : sortedCustomers;
-        document.getElementById('legendTotal').textContent = `${filtered.length} customers`;
+        const ltEl = document.getElementById('legendTotal');
+        if (ltEl) ltEl.textContent = `${filtered.length} customers`;
 
         filtered.forEach(([customer, count]) => {
             const row = document.createElement('div');
@@ -2084,7 +2102,8 @@ function updateLegend() {
         const filteredItems = legendSearch
             ? sortedItems.filter(([n]) => n.toLowerCase().includes(legendSearch.toLowerCase()))
             : sortedItems;
-        document.getElementById('legendTotal').textContent = `${filteredItems.length} items`;
+        const ltEl2 = document.getElementById('legendTotal');
+        if (ltEl2) ltEl2.textContent = `${filteredItems.length} items`;
 
         filteredItems.forEach(([itemName, count]) => {
             const row = document.createElement('div');
@@ -2823,6 +2842,7 @@ function parseLayoutTemplate(file) {
                     orientation:     (row[7] !== null && row[7] !== undefined) ? Number(row[7]) : 90,
                     locPattern:      (row[8] !== null && row[8] !== undefined) ? String(row[8]).trim() : DEFAULT_LOC_PATTERN,
                     palletsPerLevel: (row[9] !== null && row[9] !== undefined && Number(row[9]) > 0) ? Number(row[9]) : 1,
+                    type:            (row[10] !== null && row[10] !== undefined) ? String(row[10]).trim().toLowerCase() : 'rack',
                 });
             }
 
@@ -3020,25 +3040,31 @@ function loadDemoData(data) {
                         validLocations.add(makeLocKey(geo.locPattern, rowName, lv, bay, geo.maxBay, pallet, ppl));
         });
 
-        document.getElementById('layoutCard').classList.add('loaded');
-        document.getElementById('layoutFileName').textContent = 'DEMO_LAYOUT.xlsx';
+        document.getElementById('layoutCard')?.classList.add('loaded');
+        const layoutFileEl = document.getElementById('layoutFileName');
+        if (layoutFileEl) layoutFileEl.textContent = 'Warehouse_Layout_CAH.xlsx';
         // Locations auto-generated from layout
 
         // ── Inventory ───────────────────────────────────────────
+        const inventory = data.inventory || [];
         locationMap.clear();
-        data.inventory.forEach(item => {
+        inventory.forEach(item => {
             const loc = item.location;
+            if (!loc) return;
             if (!locationMap.has(loc)) locationMap.set(loc, []);
             locationMap.get(loc).push(item);
         });
 
-        document.getElementById('csvCard').classList.add('loaded');
-        document.getElementById('fileName').textContent = 'DEMO_INVENTORY.csv';
+        if (inventory.length > 0) {
+            document.getElementById('csvCard')?.classList.add('loaded');
+            const fileNameEl = document.getElementById('fileName');
+            if (fileNameEl) fileNameEl.textContent = 'DEMO_INVENTORY.csv';
+        }
 
         buildRack();
 
         document.getElementById('status').innerHTML =
-            `<span class="stat-ok">✓</span> Demo data loaded — <span class="stat-hi">${data.layout.length}</span> rows · <span class="stat-hi">${validLocations.size.toLocaleString()}</span> locations · <span class="stat-hi">${data.inventory.length.toLocaleString()}</span> items`;
+            `<span class="stat-ok">✓</span> Demo data loaded — <span class="stat-hi">${data.layout.length}</span> rows · <span class="stat-hi">${validLocations.size.toLocaleString()}</span> locations · <span class="stat-hi">${inventory.length.toLocaleString()}</span> items`;
 
         // Show demo notice banner in viewport, fade out after 5 seconds
         const notice = document.getElementById('demo-notice');
@@ -3058,17 +3084,20 @@ function loadDemoData(data) {
 function initApp() {
     document.getElementById('status').innerHTML = '⏳ Loading demo data…';
 
-    // Load demo_data.json from same directory (place both files in the same folder)
+    // Layout is embedded — fetch inventory only from demo_data.json
     fetch('demo_data.json')
         .then(r => {
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return r.json();
         })
-        .then(data => loadDemoData(data))
+        .then(data => {
+            // Use embedded layout, inventory from JSON
+            loadDemoData({ layout: DEMO_LAYOUT, inventory: data.inventory || data });
+        })
         .catch(err => {
-            console.warn('demo_data.json not found, starting empty:', err.message);
-            document.getElementById('status').innerHTML =
-                '📂 Upload <span class="stat-hi">Layout Template</span> to get started';
+            // No JSON — use embedded layout only (no inventory)
+            console.warn('demo_data.json not found, using embedded layout only:', err.message);
+            loadDemoData({ layout: DEMO_LAYOUT, inventory: [] });
         });
 }
 
@@ -3217,17 +3246,17 @@ canvas.addEventListener('mouseleave', () => {
 </div>
 
 <!-- Viewport top-left label -->
+<!-- TEMP CHANGE START — revert to: "DEMO LOGISTICS" / "Developed by Komsan Kongsuwan" / "komsan.kongsuwan@gmail.com" / "+66-81-723-9680" -->
 <div id="viewport-label">
-    <span class="vp-icon">🏭</span>
-    <span class="vp-text">DEMO LOGISTICS</span>
+    <span class="vp-text">SUZUYO DISTRIBUTION CENTER</span>
+    <span class="vp-sub" style="font-size:11px;opacity:0.75;font-family:'DM Mono',monospace;margin-left:10px;letter-spacing:0.04em;">Project CAH Thailand Centralized Warehouse</span>
 </div>
 
 <!-- Developer credit -->
 <div id="dev-credit">
-    <span class="dev-line">Developed by Komsan Kongsuwan</span>
-    <span class="dev-line"><a href="mailto:komsan.kongsuwan@gmail.com" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">komsan.kongsuwan@gmail.com</a></span>
-    <span class="dev-line">+66-81-723-9680</span>
+    <span class="dev-line">IT Department</span>
 </div>
+<!-- TEMP CHANGE END -->
 
 </body>
 </html>
