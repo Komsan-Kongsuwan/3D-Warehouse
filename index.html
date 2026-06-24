@@ -9869,13 +9869,14 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         await __demoWait(__demo.dwell);
     }
 
-    async function __demoRun(){
+    async function __demoRun(opts){
         if (__demo) return;
-        if (!Array.isArray(currentLayoutRows) || currentLayoutRows.length === 0){ try { status('Intro skipped \u2014 no layout loaded'); } catch(e){} __demoReplayBtn(); return; }
+        const full = (opts && Array.isArray(opts.rows) && opts.rows.length) ? opts.rows.map(r => ({ ...r })) : snapshotRows();
+        if (!Array.isArray(full) || full.length === 0){ try { status('Intro skipped \u2014 no layout loaded'); } catch(e){} __demoReplayBtn(); return; }
         try { status('\uD83C\uDFAC Building your layout\u2026 (click anywhere or Skip to stop)'); } catch(e){}
-        const full = snapshotRows();
         __demo = { cancelled:false, paused:false, speed:1, raf:0, dwell:520,
-                   full, script: full.map(r => ({ ...r })), cursorPos:null, wasEditing: editing };
+                   full, script: full.map(r => ({ ...r })), cursorPos:null, wasEditing: editing,
+                   camPos: camera.position.clone(), camTgt: controls.target.clone() };
         __demoUI();
         __demoArmCancel();
         try { setEditing(true); } catch(e){}
@@ -9896,7 +9897,9 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             try {
                 currentLayoutRows.length = 0;
                 st.full.forEach(r => currentLayoutRows.push({ ...r }));
-                deselect(); buildRack(); forceRender();
+                deselect(); buildRack();
+                try { if (st.camPos){ camera.position.copy(st.camPos); controls.target.copy(st.camTgt); camera.lookAt(controls.target); controls.update(); } } catch(_){}
+                forceRender();
             } catch(e){ console.warn('demo restore failed', e); }
         }
         try { setEditing(st.wasEditing === true); } catch(e){}
@@ -9993,7 +9996,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             if (__reduceMotion()){ __demoReplayBtn(); return; }
             __demoPlayed = true;
         }
-        Promise.resolve().then(__demoRun).catch(e => { console.warn('auto-demo failed', e); try { __demoEnd(true); } catch(_){} });
+        Promise.resolve().then(() => __demoRun(opts)).catch(e => { console.warn('auto-demo failed', e); try { __demoEnd(true); } catch(_){} });
     };
 
 
@@ -10165,7 +10168,10 @@ async function initApp() {
         // ever paints — so the user sees it build from empty, not a flash of the full
         // (and still inventory-less) layout.
         if (typeof window.startAutoDemo === 'function' && window.__introWanted && window.__introWanted()) {
-            window.startAutoDemo({ auto: true });
+            const __introRows = currentLayoutRows.map(r => ({ ...r }));   // stash the parsed layout
+            currentLayoutRows.length = 0;
+            try { buildRack(); } catch(e){}                              // empty the scene THIS frame, before it ever paints
+            window.startAutoDemo({ auto: true, rows: __introRows });     // rebuild it via drag & drop
         }
     } catch (err) {
         console.warn('Auto-load layout failed (' + AUTOLOAD_LAYOUT + '):', err.message);
