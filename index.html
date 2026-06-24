@@ -934,14 +934,11 @@ body.light #viewport-label .vp-text {
     text-shadow: 0 1px 3px rgba(255,255,255,0.8);
 }
 #dev-credit {
-    position: fixed;
-    bottom: 134px;
-    right:  18px;
-    z-index: 9000;
     text-align: right;
-    line-height: 1.55;
+    line-height: 1.3;
     pointer-events: auto;
     user-select: none;
+    flex-shrink: 0;
 }
 #dev-credit .dev-line {
     display: block;
@@ -1246,15 +1243,12 @@ body.light .sc-age-card.active {
 
 /* ─── USAGE GUIDE (bottom-left viewport) ───────────────────── */
 #usage-guide {
-    position: fixed;
-    bottom: 134px;
-    left: 254px;
-    z-index: 9000;
     display: flex;
     gap: 10px;
     pointer-events: none;
     user-select: none;
     align-items: center;
+    flex-wrap: wrap;
 }
 .ug-item {
     display: flex;
@@ -1321,6 +1315,16 @@ body.light #demo-notice .dn-title { color: #0d5fa3; }
 }
 body.light #demo-notice .dn-text { color: rgba(30,60,100,0.7); }
 
+#bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 14px;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
 #row-picker {
     background: var(--bg-panel);
     border-top: 1px solid var(--border);
@@ -1682,6 +1686,21 @@ body.light .loc-summary-title { color: #0f2a42; }
 <div id="viewport-wrap">
     <div style="display:flex;flex:1;overflow:hidden;position:relative;">
         <div id="canvas-container"></div>
+    </div>
+    <div id="bottom-bar">
+        <div id="usage-guide">
+            <div class="ug-item"><span class="ug-key">drag</span> rotate</div>
+            <div class="ug-sep">·</div>
+            <div class="ug-item"><span class="ug-key">scroll</span> zoom</div>
+            <div class="ug-sep">·</div>
+            <div class="ug-item"><span class="ug-key">right-drag</span> pan</div>
+            <div class="ug-sep">·</div>
+            <div class="ug-item"><span class="ug-key">click label</span> isolate row</div>
+        </div>
+        <div id="dev-credit">
+            <span class="dev-line">Developed by Komsan Kongsuwan</span>
+            <span class="dev-line"><a href="mailto:komsan.kongsuwan@gmail.com" style="color:inherit;text-decoration:none;">komsan.kongsuwan@gmail.com</a> &middot; <a href="tel:+66817239680" style="color:inherit;text-decoration:none;">+66-81-723-9680</a></span>
+        </div>
     </div>
     <div id="row-picker"></div>
 </div>
@@ -9705,317 +9724,6 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     }
     window.newFloorPlan = createBlankFloorPlan;
 
-    /* ============================================================
-       AUTO-DEMO  —  cinematic guided replay of the layout build.
-       Drives the real placeFeature/lightRebuild/select functions on a
-       timeline, with a ghost cursor, camera choreography and a
-       property-grow flourish. Fully cancellable; restores the real
-       layout on finish or on any user interaction.
-       ============================================================ */
-    let __demo = null;          // active run-state object, or null when idle
-    let __demoPlayed = false;   // once-per-session guard (per page load)
-
-    function __reduceMotion(){
-        try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
-        catch(e){ return false; }
-    }
-    function __ease(p){ return p < 0.5 ? 2*p*p : 1 - Math.pow(-2*p + 2, 2) / 2; }
-
-    // Map a layout row back to the palette tile it would have been dragged from.
-    function __demoKeyForRow(row){
-        if (!row) return null;
-        if (row.type === 'fixture') return row.subtype || null;
-        for (const k in VARIANT_KEYS){
-            const v = VARIANT_KEYS[k], base = NF_TYPES[v.base];
-            if (base && base.type === row.type && row[v.field] === v.variant) return k;
-        }
-        for (const id in NF_TYPES){ if (NF_TYPES[id].type === row.type) return id; }
-        return null;
-    }
-    // The single numeric property to "grow" for the adjust-a-property flourish.
-    function __demoGrowField(row){
-        if (row.type === 'srack') return (typeof row.maxLevels === 'number' && row.maxLevels > 1) ? 'maxLevels' : null;
-        for (const f of ['height','featureHeight','hDim']) if (typeof row[f] === 'number' && row[f] > 0.4) return f;
-        return null;
-    }
-    function __worldToScreen(wx, wy, wz){
-        const v = new THREE.Vector3(wx, wy, wz).project(getActiveCamera());
-        const rect = renderer.domElement.getBoundingClientRect();
-        return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (-v.y * 0.5 + 0.5) * rect.height };
-    }
-
-    // A tween that renders every frame and resolves on completion, honouring pause/cancel/speed.
-    function __demoTween(durMs, onUpdate){
-        return new Promise(resolve => {
-            if (!__demo || __demo.cancelled){ resolve(); return; }
-            const dur = Math.max(16, durMs / (__demo.speed || 1));
-            const t0 = performance.now();
-            function frame(now){
-                if (!__demo || __demo.cancelled){ resolve(); return; }
-                if (__demo.paused){ __demo.raf = requestAnimationFrame(frame); return; }
-                const p = Math.min(1, (now - t0) / dur);
-                try { onUpdate(__ease(p), p); } catch(e){}
-                try { forceRender(); } catch(e){}
-                if (p < 1) __demo.raf = requestAnimationFrame(frame);
-                else resolve();
-            }
-            __demo.raf = requestAnimationFrame(frame);
-        });
-    }
-    function __demoWait(ms){
-        return new Promise(resolve => {
-            if (!__demo || __demo.cancelled){ resolve(); return; }
-            const t0 = performance.now();
-            function tick(){
-                if (!__demo || __demo.cancelled){ resolve(); return; }
-                if (__demo.paused){ __demo.raf = requestAnimationFrame(tick); return; }
-                if ((performance.now() - t0) >= ms / (__demo.speed || 1)) resolve();
-                else __demo.raf = requestAnimationFrame(tick);
-            }
-            __demo.raf = requestAnimationFrame(tick);
-        });
-    }
-
-    function __demoTile(key){
-        try {
-            const el = key && document.querySelector('#paletteGrid .palette-item[data-subtype="' + key + '"]');
-            if (el){ try { el.scrollIntoView({ block:'center' }); } catch(_){}
-                const r = el.getBoundingClientRect();
-                if (r.width) return { x: r.left + r.width/2, y: r.top + r.height/2, url: (el.querySelector('img')||{}).src || null, el };
-            }
-        } catch(e){}
-        const p = document.getElementById('paletteGrid');
-        if (p){ const r = p.getBoundingClientRect(); return { x: r.left + 34, y: r.top + 60, url:null, el:null }; }
-        return { x: 60, y: 220, url:null, el:null };
-    }
-    function __demoHi(el, on){ if (el) el.style.outline = on ? '2px solid var(--cyan,#39c0d6)' : ''; }
-
-    function __demoDist(t){
-        let span = 36;
-        if (t.x2 != null && t.z2 != null) span = Math.max(Math.abs(t.x2 - t.xPos), Math.abs(t.z2 - t.zStart)) * SCALE;
-        else if (t.maxColumns) span = t.maxColumns * 6;
-        return Math.max(95, Math.min(430, span * 2.2 + 85));
-    }
-
-    async function __demoStep(i){
-        if (!__demo || __demo.cancelled) return;
-        const target = __demo.script[i];
-        const key = __demoKeyForRow(target);
-        __demoProgress(i);
-
-        const wx = (target.xPos || 0) * SCALE, wz = (target.zStart || 0) * -SCALE;
-        const wy = (regionHeightAt(wx, wz) || 0) + 6;
-
-        // 1) cursor hops onto the source tile
-        const tile = __demoTile(key);
-        if (!__demo.cursorPos) __demo.cursorPos = { x: tile.x, y: tile.y };
-        __demoHi(tile.el, true);
-        await __demoTween(360, (e) => {
-            const x = __demo.cursorPos.x + (tile.x - __demo.cursorPos.x) * e;
-            const y = __demo.cursorPos.y + (tile.y - __demo.cursorPos.y) * e;
-            __demoCursor(x, y, null);
-        });
-        __demo.cursorPos = { x: tile.x, y: tile.y };
-
-        // 2) camera + cursor travel together to the drop point (ghost tile in hand)
-        const sPos = camera.position.clone(), sTgt = controls.target.clone();
-        const eTgt = new THREE.Vector3(wx, wy, wz);
-        let dir = sPos.clone().sub(sTgt); if (dir.lengthSq() < 1) dir.set(0.6, 0.7, 0.6); dir.normalize();
-        const ePos = eTgt.clone().add(dir.multiplyScalar(__demoDist(target)));
-        const cFrom = { x: __demo.cursorPos.x, y: __demo.cursorPos.y };
-        await __demoTween(820, (e) => {
-            camera.position.lerpVectors(sPos, ePos, e);
-            controls.target.lerpVectors(sTgt, eTgt, e);
-            camera.lookAt(controls.target); controls.update();
-            const sp = __worldToScreen(wx, wy, wz);
-            __demoCursor(cFrom.x + (sp.x - cFrom.x) * e, cFrom.y + (sp.y - cFrom.y) * e, tile.url);
-        });
-        __demoHi(tile.el, false);
-        __demo.cursorPos = __worldToScreen(wx, wy, wz);
-
-        // 3) DROP — place via the real path, then morph to the exact demo values
-        try {
-            const before = currentLayoutRows.length;
-            if (key) placeFeature(key, wx, wz);
-            if (currentLayoutRows.length > before){
-                const placed = currentLayoutRows[currentLayoutRows.length - 1];
-                const placedName = placed.rowName;
-                const grow = __demoGrowField(target);
-                for (const k in target){ if (k === 'rowName') continue; placed[k] = target[k]; }
-                placed.rowName = placedName;
-                const finalVal = grow ? placed[grow] : null;
-                if (grow) placed[grow] = (grow === 'maxLevels') ? 1 : Math.max(0.3, finalVal * 0.18);
-                lightRebuild(placed.type); select(placedName); forceRender();
-                __demoCursor(__demo.cursorPos.x, __demo.cursorPos.y, null);   // "release" — drop the ghost tile
-
-                const grp = findGroup(placedName);
-                if (grp && !__reduceMotion()){
-                    await __demoTween(240, (e) => { const s = 0.2 + 0.8 * e; grp.scale.set(s, s, s); });
-                    grp.scale.set(1, 1, 1);
-                }
-                if (grow && finalVal != null){
-                    const startV = placed[grow];
-                    await __demoTween(560, (e) => {
-                        let v = startV + (finalVal - startV) * e;
-                        if (grow === 'maxLevels') v = Math.max(1, Math.round(v));
-                        placed[grow] = v; try { lightRebuild(placed.type); } catch(_){}
-                    });
-                    placed[grow] = finalVal;
-                    try { lightRebuild(placed.type); select(placedName); forceRender(); } catch(_){}
-                }
-            }
-        } catch(e){ console.warn('demo step failed', e); }
-
-        await __demoWait(__demo.dwell);
-    }
-
-    async function __demoRun(opts){
-        if (__demo) return;
-        const full = (opts && Array.isArray(opts.rows) && opts.rows.length) ? opts.rows.map(r => ({ ...r })) : snapshotRows();
-        if (!Array.isArray(full) || full.length === 0) return;
-        __demo = { cancelled:false, paused:false, speed:1, raf:0, full, wasEditing: editing,
-                   camPos: camera.position.clone(), camTgt: controls.target.clone() };
-        __demoArmCancel();
-        const N = full.length;
-        const STEPS = Math.min(14, Math.max(6, N));            // reveal the layout in this many quick batches
-        const PER   = Math.max(45, Math.round(2200 / STEPS));   // ~2.2 s of waits (+ rebuild time) -> a few seconds total
-        try { status('\uD83C\uDFAC Simulating layout build\u2026'); } catch(e){}
-        for (let s = 1; s <= STEPS; s++){
-            if (!__demo || __demo.cancelled) return;
-            const k = (s >= STEPS) ? N : Math.round(N * s / STEPS);
-            currentLayoutRows.length = 0;
-            for (let i = 0; i < k; i++) currentLayoutRows.push({ ...full[i] });
-            try { deselect(); buildRack(); forceRender(); } catch(e){}
-            await __demoWait(PER);
-        }
-        __demoEnd(true);                                        // settle on the exact full layout + restore view
-        try { status('\u2705 Layout ready'); } catch(e){}
-    }
-
-    function __demoEnd(restore){
-        if (!__demo) return;
-        const st = __demo; __demo = null;                 // null first so pending frames bail
-        try { cancelAnimationFrame(st.raf); } catch(e){}
-        try { if (st.detach) st.detach(); } catch(e){}
-        if (restore){
-            try {
-                currentLayoutRows.length = 0;
-                st.full.forEach(r => currentLayoutRows.push({ ...r }));
-                deselect(); buildRack();
-                try { if (st.camPos){ camera.position.copy(st.camPos); controls.target.copy(st.camTgt); camera.lookAt(controls.target); controls.update(); } } catch(_){}
-                forceRender();
-            } catch(e){ console.warn('demo restore failed', e); }
-        }
-        try { setEditing(st.wasEditing === true); } catch(e){}
-        try { st.cursor && st.cursor.remove(); st.ghost && st.ghost.remove(); st.bar && st.bar.remove(); } catch(e){}
-    }
-
-    function __demoArmCancel(){
-        const onInput = (e) => {
-            if (e.target && e.target.closest && e.target.closest('#__demoBar')) return;   // bar controls don't cancel
-            __demoEnd(true);
-        };
-        const canvas = renderer.domElement;
-        canvas.addEventListener('pointerdown', onInput, true);
-        canvas.addEventListener('wheel', onInput, true);
-        window.addEventListener('keydown', onInput, true);
-        __demo.detach = () => {
-            canvas.removeEventListener('pointerdown', onInput, true);
-            canvas.removeEventListener('wheel', onInput, true);
-            window.removeEventListener('keydown', onInput, true);
-        };
-    }
-
-    // ---- overlay UI: cursor, ghost tile, control bar ----
-    function __demoCursor(x, y, ghostUrl){
-        if (!__demo) return;
-        __demo.cursorPos = { x, y };
-        if (__demo.cursor){ __demo.cursor.style.left = x + 'px'; __demo.cursor.style.top = y + 'px'; }
-        if (__demo.ghost){
-            if (ghostUrl){ __demo.ghost.style.display = 'block'; __demo.ghost.style.backgroundImage = 'url(' + ghostUrl + ')';
-                __demo.ghost.style.left = (x + 16) + 'px'; __demo.ghost.style.top = (y + 16) + 'px'; }
-            else __demo.ghost.style.display = 'none';
-        }
-    }
-    function __demoUI(){
-        const cur = document.createElement('div');
-        cur.id = '__demoCursor';
-        cur.style.cssText = 'position:fixed;z-index:100000;width:26px;height:26px;left:-99px;top:-99px;pointer-events:none;'
-            + 'transform:translate(-4px,-2px);filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));'
-            + 'background:no-repeat center/contain url("data:image/svg+xml;utf8,'
-            + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 2l7 18 2.5-7.2L20 10z" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round"/></svg>')
-            + '");';
-        const gho = document.createElement('div');
-        gho.id = '__demoGhost';
-        gho.style.cssText = 'position:fixed;z-index:99999;width:42px;height:42px;left:-99px;top:-99px;display:none;pointer-events:none;'
-            + 'background:no-repeat center/contain;border:1px solid rgba(255,255,255,.5);border-radius:7px;'
-            + 'box-shadow:0 4px 12px rgba(0,0,0,.4);opacity:.9;background-color:rgba(20,30,40,.6);';
-        const bar = document.createElement('div');
-        bar.id = '__demoBar';
-        bar.style.cssText = 'position:fixed;z-index:100001;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:8px;'
-            + 'align-items:center;padding:8px 12px;border-radius:11px;background:rgba(12,22,30,.92);'
-            + 'border:1px solid var(--border-lit,#2a4f5a);box-shadow:0 8px 26px rgba(0,0,0,.5);'
-            + 'font:13px system-ui,sans-serif;color:var(--text-hi,#e8f4f8);backdrop-filter:blur(4px);';
-        const mkBtn = (txt, fn, title) => { const b = document.createElement('button'); b.textContent = txt; if (title) b.title = title;
-            b.style.cssText = 'cursor:pointer;border:1px solid var(--border-lit,#2a4f5a);background:var(--bg-card,#10202a);color:inherit;'
-                + 'border-radius:7px;padding:5px 9px;font:inherit;line-height:1;'; b.addEventListener('click', fn); return b; };
-        const tag = document.createElement('span');
-        tag.textContent = '🎬 Building your layout…';
-        tag.style.cssText = 'opacity:.9;margin-right:2px;';
-        const label = document.createElement('span'); label.id = '__demoLabel'; label.style.cssText = 'min-width:128px;text-align:center;opacity:.85;font-variant-numeric:tabular-nums;';
-        const playBtn = mkBtn('⏸', () => { if (!__demo) return; __demo.paused = !__demo.paused; playBtn.textContent = __demo.paused ? '▶' : '⏸'; }, 'Pause / resume');
-        const spdBtn  = mkBtn('1×', () => { if (!__demo) return; const seq = [1, 2, 4, 0.5]; const i = seq.indexOf(__demo.speed); __demo.speed = seq[(i + 1) % seq.length]; spdBtn.textContent = __demo.speed + '×'; }, 'Playback speed');
-        const skipBtn = mkBtn('⏭ Skip', () => __demoEnd(true), 'Skip to the finished layout');
-        bar.appendChild(tag); bar.appendChild(playBtn); bar.appendChild(spdBtn); bar.appendChild(label); bar.appendChild(skipBtn);
-        document.body.appendChild(cur); document.body.appendChild(gho); document.body.appendChild(bar);
-        __demo.cursor = cur; __demo.ghost = gho; __demo.bar = bar; __demo.label = label;
-    }
-    function __demoProgress(i){
-        if (!__demo || !__demo.label) return;
-        const n = __demo.script.length;
-        const perStep = 2.3 / (__demo.speed || 1);
-        const leftS = Math.max(0, Math.round((n - i) * perStep));
-        const mm = Math.floor(leftS / 60), ss = String(leftS % 60).padStart(2, '0');
-        __demo.label.textContent = (i + 1) + ' / ' + n + '  ·  ~' + mm + ':' + ss + ' left';
-    }
-    function __demoReplayBtn(){
-        if (document.getElementById('__demoReplay')) return;
-        const b = document.createElement('button');
-        b.id = '__demoReplay'; b.textContent = '🎬 Replay intro'; b.title = 'Watch the layout build itself again';
-        b.style.cssText = 'position:fixed;z-index:9000;right:14px;bottom:14px;cursor:pointer;'
-            + 'border:1px solid var(--border-lit,#2a4f5a);background:rgba(12,22,30,.9);color:var(--text-hi,#e8f4f8);'
-            + 'border-radius:9px;padding:7px 11px;font:13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.4);';
-        b.addEventListener('click', () => window.startAutoDemo({ auto:false }));
-        document.body.appendChild(b);
-    }
-
-    window.__introWanted = function(){ return !__demoPlayed && !__demo && !__reduceMotion(); };
-    window.__autoDemoActive = function(){ return !!__demo; };
-    window.startAutoDemo = function(opts){
-        opts = opts || {};
-        if (__demo) return;
-        if (opts.auto){
-            if (__demoPlayed) return;
-            if (__reduceMotion()){ __demoReplayBtn(); return; }
-            __demoPlayed = true;
-        }
-        Promise.resolve().then(() => __demoRun(opts)).catch(e => { console.warn('auto-demo failed', e); try { __demoEnd(true); } catch(_){} });
-    };
-
-    // Persistent on-screen "Demo" button: click to watch the layout assemble in a few seconds.
-    (function(){
-        if (document.getElementById('__demoBtn')) return;
-        const b = document.createElement('button');
-        b.id = '__demoBtn'; b.textContent = '\uD83C\uDFAC Demo';
-        b.title = 'Watch the layout build itself (takes a few seconds)';
-        b.style.cssText = 'position:fixed;z-index:9000;right:14px;bottom:14px;cursor:pointer;'
-            + 'border:1px solid var(--border-lit,#2a4f5a);background:rgba(12,22,30,.92);color:var(--text-hi,#e8f4f8);'
-            + 'border-radius:9px;padding:8px 13px;font:13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.4);';
-        b.addEventListener('click', () => { try { window.startAutoDemo({ auto:false }); } catch(e){ console.warn('demo failed', e); } });
-        document.body.appendChild(b);
-    })();
-
-
     // After a WebGL context loss, rebuild the scene and (if mid-edit) restore the
     // selection box + resize handles so editing continues seamlessly.
     window.__rebuildAfterRestore = function(){
@@ -10062,7 +9770,7 @@ function parseCSV(file) {
             document.getElementById('status').innerHTML =
                 `<span class="stat-ok">✓</span> <span class="stat-hi">${locationMap.size.toLocaleString()}</span> locations · <span class="stat-hi">${totalRows.toLocaleString()}</span> items loaded`;
 
-            if (!(window.__autoDemoActive && window.__autoDemoActive())) buildRack();   // don't fight the intro mid-replay; it rebuilds (with inventory) when it ends
+            buildRack();
             hideUploadProgress();
         },
         error: function(error) {
@@ -10179,7 +9887,6 @@ async function initApp() {
         await uploadYield();
         parseLayoutBuffer(buf, AUTOLOAD_LAYOUT);   // builds the layout + applies the Camera sheet
         layoutLoaded = true;
-        window.__layoutAutoloaded = true;
     } catch (err) {
         console.warn('Auto-load layout failed (' + AUTOLOAD_LAYOUT + '):', err.message);
     }
@@ -10215,7 +9922,6 @@ async function initApp() {
 }
 
 initApp();
-
 
 // ---------------- THEME TOGGLE ----------------
 
@@ -10282,15 +9988,6 @@ console.log('DEMO Warehouse Rack Simulator initialized');
 </div>
 
 <!-- Usage guide bottom-left -->
-<div id="usage-guide">
-    <div class="ug-item"><span class="ug-key">drag</span> rotate</div>
-    <div class="ug-sep">·</div>
-    <div class="ug-item"><span class="ug-key">scroll</span> zoom</div>
-    <div class="ug-sep">·</div>
-    <div class="ug-item"><span class="ug-key">right-drag</span> pan</div>
-    <div class="ug-sep">·</div>
-    <div class="ug-item"><span class="ug-key">click label</span> isolate row</div>
-</div>
 
 <!-- Demo notice banner -->
 <div id="demo-notice">
@@ -10317,11 +10014,6 @@ console.log('DEMO Warehouse Rack Simulator initialized');
     <div id="uploadProgressTrack"><div id="uploadProgressBar"></div></div>
 </div>
 
-<!-- Developer credit -->
-<div id="dev-credit">
-    <span class="dev-line">Developed by Komsan Kongsuwan</span>
-    <span class="dev-line"><a href="mailto:komsan.kongsuwan@gmail.com" style="color:inherit;text-decoration:none;">komsan.kongsuwan@gmail.com</a> &middot; <a href="tel:+66817239680" style="color:inherit;text-decoration:none;">+66-81-723-9680</a></span>
-</div>
 
 </body>
 </html>
