@@ -9872,20 +9872,24 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     async function __demoRun(opts){
         if (__demo) return;
         const full = (opts && Array.isArray(opts.rows) && opts.rows.length) ? opts.rows.map(r => ({ ...r })) : snapshotRows();
-        if (!Array.isArray(full) || full.length === 0){ try { status('Intro skipped \u2014 no layout loaded'); } catch(e){} __demoReplayBtn(); return; }
-        try { status('\uD83C\uDFAC Building your layout\u2026 (click anywhere or Skip to stop)'); } catch(e){}
-        __demo = { cancelled:false, paused:false, speed:1, raf:0, dwell:520,
-                   full, script: full.map(r => ({ ...r })), cursorPos:null, wasEditing: editing,
+        if (!Array.isArray(full) || full.length === 0) return;
+        __demo = { cancelled:false, paused:false, speed:1, raf:0, full, wasEditing: editing,
                    camPos: camera.position.clone(), camTgt: controls.target.clone() };
-        __demoUI();
         __demoArmCancel();
-        try { setEditing(true); } catch(e){}
-        try { currentLayoutRows.length = 0; deselect(); buildRack(); forceRender(); } catch(e){}
-        for (let i = 0; i < __demo.script.length; i++){
-            if (!__demo || __demo.cancelled) break;
-            await __demoStep(i);
+        const N = full.length;
+        const STEPS = Math.min(14, Math.max(6, N));            // reveal the layout in this many quick batches
+        const PER   = Math.max(45, Math.round(2200 / STEPS));   // ~2.2 s of waits (+ rebuild time) -> a few seconds total
+        try { status('\uD83C\uDFAC Simulating layout build\u2026'); } catch(e){}
+        for (let s = 1; s <= STEPS; s++){
+            if (!__demo || __demo.cancelled) return;
+            const k = (s >= STEPS) ? N : Math.round(N * s / STEPS);
+            currentLayoutRows.length = 0;
+            for (let i = 0; i < k; i++) currentLayoutRows.push({ ...full[i] });
+            try { deselect(); buildRack(); forceRender(); } catch(e){}
+            await __demoWait(PER);
         }
-        if (__demo && !__demo.cancelled) __demoEnd(true);
+        __demoEnd(true);                                        // settle on the exact full layout + restore view
+        try { status('\u2705 Layout ready'); } catch(e){}
     }
 
     function __demoEnd(restore){
@@ -9904,7 +9908,6 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         }
         try { setEditing(st.wasEditing === true); } catch(e){}
         try { st.cursor && st.cursor.remove(); st.ghost && st.ghost.remove(); st.bar && st.bar.remove(); } catch(e){}
-        __demoReplayBtn();
     }
 
     function __demoArmCancel(){
@@ -9998,6 +10001,19 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         }
         Promise.resolve().then(() => __demoRun(opts)).catch(e => { console.warn('auto-demo failed', e); try { __demoEnd(true); } catch(_){} });
     };
+
+    // Persistent on-screen "Demo" button: click to watch the layout assemble in a few seconds.
+    (function(){
+        if (document.getElementById('__demoBtn')) return;
+        const b = document.createElement('button');
+        b.id = '__demoBtn'; b.textContent = '\uD83C\uDFAC Demo';
+        b.title = 'Watch the layout build itself (takes a few seconds)';
+        b.style.cssText = 'position:fixed;z-index:9000;right:14px;bottom:14px;cursor:pointer;'
+            + 'border:1px solid var(--border-lit,#2a4f5a);background:rgba(12,22,30,.92);color:var(--text-hi,#e8f4f8);'
+            + 'border-radius:9px;padding:8px 13px;font:13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.4);';
+        b.addEventListener('click', () => { try { window.startAutoDemo({ auto:false }); } catch(e){ console.warn('demo failed', e); } });
+        document.body.appendChild(b);
+    })();
 
 
     // After a WebGL context loss, rebuild the scene and (if mid-edit) restore the
@@ -10164,15 +10180,6 @@ async function initApp() {
         parseLayoutBuffer(buf, AUTOLOAD_LAYOUT);   // builds the layout + applies the Camera sheet
         layoutLoaded = true;
         window.__layoutAutoloaded = true;
-        // If the cinematic intro will play, switch to it NOW — before the finished layout
-        // ever paints — so the user sees it build from empty, not a flash of the full
-        // (and still inventory-less) layout.
-        if (typeof window.startAutoDemo === 'function' && window.__introWanted && window.__introWanted()) {
-            const __introRows = currentLayoutRows.map(r => ({ ...r }));   // stash the parsed layout
-            currentLayoutRows.length = 0;
-            try { buildRack(); } catch(e){}                              // empty the scene THIS frame, before it ever paints
-            window.startAutoDemo({ auto: true, rows: __introRows });     // rebuild it via drag & drop
-        }
     } catch (err) {
         console.warn('Auto-load layout failed (' + AUTOLOAD_LAYOUT + '):', err.message);
     }
@@ -10209,18 +10216,6 @@ async function initApp() {
 
 initApp();
 
-// Resilient one-time intro trigger: as soon as the layout is on screen and the demo
-// is ready, play it once. Polling makes this robust to load timing and flags.
-(function(){
-    let fired = false, ticks = 0;
-    const iv = setInterval(() => {
-        ticks++;
-        const ready = window.__layoutAutoloaded === true && Array.isArray(currentLayoutRows) && currentLayoutRows.length > 0 && typeof window.startAutoDemo === 'function';
-        if (!fired && ready){ fired = true; clearInterval(iv);
-            try { window.startAutoDemo({ auto: true }); } catch(e){ console.warn('intro trigger failed', e); } }
-        else if (ticks > 60){ clearInterval(iv); }   // give up after ~30 s
-    }, 500);
-})();
 
 // ---------------- THEME TOGGLE ----------------
 
