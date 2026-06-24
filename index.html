@@ -9871,7 +9871,8 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
 
     async function __demoRun(){
         if (__demo) return;
-        if (!Array.isArray(currentLayoutRows) || currentLayoutRows.length === 0){ __demoReplayBtn(); return; }
+        if (!Array.isArray(currentLayoutRows) || currentLayoutRows.length === 0){ try { status('Intro skipped \u2014 no layout loaded'); } catch(e){} __demoReplayBtn(); return; }
+        try { status('\uD83C\uDFAC Building your layout\u2026 (click anywhere or Skip to stop)'); } catch(e){}
         const full = snapshotRows();
         __demo = { cancelled:false, paused:false, speed:1, raf:0, dwell:520,
                    full, script: full.map(r => ({ ...r })), cursorPos:null, wasEditing: editing };
@@ -9990,7 +9991,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             if (__reduceMotion()){ __demoReplayBtn(); return; }
             __demoPlayed = true;
         }
-        try { __demoRun(); } catch(e){ console.warn('auto-demo failed', e); __demoEnd(true); }
+        Promise.resolve().then(__demoRun).catch(e => { console.warn('auto-demo failed', e); try { __demoEnd(true); } catch(_){} });
     };
 
 
@@ -10189,14 +10190,22 @@ async function initApp() {
     await uploadYield();     // let the freshly-built (inventory) scene paint before hiding —
     await uploadYield();     // layout's render is already covered by the following CSV fetch
     hideUploadProgress();    // release the outer hold -> bar hides once everything is on screen
-
-    // One-time cinematic intro: replay the build once the layout is on screen.
-    if (layoutLoaded && typeof window.startAutoDemo === 'function') {
-        setTimeout(() => { try { window.startAutoDemo({ auto: true }); } catch(e){ console.warn('intro demo skipped', e); } }, 900);
-    }
 }
 
 initApp();
+
+// Resilient one-time intro trigger: as soon as the layout is on screen and the demo
+// is ready, play it once. Polling makes this robust to load timing and flags.
+(function(){
+    let fired = false, ticks = 0;
+    const iv = setInterval(() => {
+        ticks++;
+        const ready = Array.isArray(currentLayoutRows) && currentLayoutRows.length > 0 && typeof window.startAutoDemo === 'function';
+        if (!fired && ready){ fired = true; clearInterval(iv);
+            try { window.startAutoDemo({ auto: true }); } catch(e){ console.warn('intro trigger failed', e); } }
+        else if (ticks > 60){ clearInterval(iv); }   // give up after ~30 s
+    }, 500);
+})();
 
 // ---------------- THEME TOGGLE ----------------
 
