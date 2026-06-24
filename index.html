@@ -9983,6 +9983,8 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         document.body.appendChild(b);
     }
 
+    window.__introWanted = function(){ return !__demoPlayed && !__demo && !__reduceMotion(); };
+    window.__autoDemoActive = function(){ return !!__demo; };
     window.startAutoDemo = function(opts){
         opts = opts || {};
         if (__demo) return;
@@ -10041,7 +10043,7 @@ function parseCSV(file) {
             document.getElementById('status').innerHTML =
                 `<span class="stat-ok">✓</span> <span class="stat-hi">${locationMap.size.toLocaleString()}</span> locations · <span class="stat-hi">${totalRows.toLocaleString()}</span> items loaded`;
 
-            buildRack();
+            if (!(window.__autoDemoActive && window.__autoDemoActive())) buildRack();   // don't fight the intro mid-replay; it rebuilds (with inventory) when it ends
             hideUploadProgress();
         },
         error: function(error) {
@@ -10158,6 +10160,13 @@ async function initApp() {
         await uploadYield();
         parseLayoutBuffer(buf, AUTOLOAD_LAYOUT);   // builds the layout + applies the Camera sheet
         layoutLoaded = true;
+        window.__layoutAutoloaded = true;
+        // If the cinematic intro will play, switch to it NOW — before the finished layout
+        // ever paints — so the user sees it build from empty, not a flash of the full
+        // (and still inventory-less) layout.
+        if (typeof window.startAutoDemo === 'function' && window.__introWanted && window.__introWanted()) {
+            window.startAutoDemo({ auto: true });
+        }
     } catch (err) {
         console.warn('Auto-load layout failed (' + AUTOLOAD_LAYOUT + '):', err.message);
     }
@@ -10200,7 +10209,7 @@ initApp();
     let fired = false, ticks = 0;
     const iv = setInterval(() => {
         ticks++;
-        const ready = Array.isArray(currentLayoutRows) && currentLayoutRows.length > 0 && typeof window.startAutoDemo === 'function';
+        const ready = window.__layoutAutoloaded === true && Array.isArray(currentLayoutRows) && currentLayoutRows.length > 0 && typeof window.startAutoDemo === 'function';
         if (!fired && ready){ fired = true; clearInterval(iv);
             try { window.startAutoDemo({ auto: true }); } catch(e){ console.warn('intro trigger failed', e); } }
         else if (ticks > 60){ clearInterval(iv); }   // give up after ~30 s
