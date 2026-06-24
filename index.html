@@ -1976,6 +1976,30 @@ window.addEventListener("resize", () => {
     updateRendererSize();
 });
 
+// The canvas area also changes height for reasons that DON'T fire a window 'resize':
+// the row-picker filling with badges after the layout loads, the bottom info bar, font
+// loads, sidebar toggles. If the renderer/camera aspect is left at the value captured
+// while the layout was still settling, the scene renders stretched. A ResizeObserver
+// on the canvas container keeps the renderer matched to its real size at all times.
+if (typeof ResizeObserver !== 'undefined') {
+    let _resizeRaf = 0;
+    const _ro = new ResizeObserver(() => {
+        cancelAnimationFrame(_resizeRaf);
+        _resizeRaf = requestAnimationFrame(() => {
+            try {
+                updateRendererSize();
+                if (isTopView && orthoCamera && typeof getOrthoSize === 'function') {
+                    const { halfH, halfW } = getOrthoSize();
+                    orthoCamera.left = -halfW; orthoCamera.right = halfW;
+                    orthoCamera.top  =  halfH; orthoCamera.bottom = -halfH;
+                    orthoCamera.updateProjectionMatrix();
+                }
+            } catch (e) {}
+        });
+    });
+    try { _ro.observe(document.getElementById('canvas-container')); } catch (e) {}
+}
+
 // Orbit Controls - target warehouse centre
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.target.set(336, 0, -200);
