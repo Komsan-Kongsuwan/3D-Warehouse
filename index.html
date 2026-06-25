@@ -1853,8 +1853,8 @@ function buildLayoutFromConfig(layoutRows) {
             subtype:         (r.subtype || 'cb').trim().toLowerCase(),
             featureHeight:      (r.height != null ? Number(r.height) : 2.0) * SCALE,
             wallStyle:       (r.wallStyle || 'mesh').toString().trim().toLowerCase(),
-            rackWidth:       (r.rackWidth != null && r.rackWidth > 0) ? Number(r.rackWidth) : null,
-            rackDepth:       (r.rackDepth != null && r.rackDepth > 0) ? Number(r.rackDepth) : null,
+            rackWidth:       (r.rackWidth != null && r.rackWidth > 0 && r.rackWidth <= 4) ? Number(r.rackWidth) : null,
+            rackDepth:       (r.rackDepth != null && r.rackDepth > 0 && r.rackDepth <= 4) ? Number(r.rackDepth) : null,
             passages:        r.passages || '',
             srBays:          r.bays || 1,
             srPPB:           Math.max(1, Math.floor(Number(r.palletsPerBay) || 1)),
@@ -7715,9 +7715,9 @@ function parseLayoutBuffer(data, fileName) {
                     subtype: (strOf(row[8]) || 'e8842b').toLowerCase(), type: 'srack',
                     maxColumns: bays * ppb, maxLevels: lv, palletsPerLevel: 1,
                     locPattern: strOf(row[9]) || '{row}-{level}-{column}',
-                    rackWidth: (numOf(row[10]) && numOf(row[10]) > 0) ? numOf(row[10]) : null,
-                    rackDepth: (numOf(row[11]) && numOf(row[11]) > 0) ? numOf(row[11]) : null,
-                    passages: strOf(row[12]) || '',
+                    rackWidth: (numOf(row[10]) > 0 && numOf(row[10]) <= 4) ? numOf(row[10]) : null,   // a rack column is ~1.5 m; ignore stray/legacy values
+                    rackDepth: (numOf(row[11]) > 0 && numOf(row[11]) <= 4) ? numOf(row[11]) : null,   // a rack is ~1 m deep; ignore stray/legacy values (was stretching the rack out)
+                    passages: (() => { const v = strOf(row[12]) || ''; return /\d+\s*-\s*\d+/.test(v) ? v : ''; })(),   // only a real "start-width-open" spec, not a stray number
                 };
             });
 
