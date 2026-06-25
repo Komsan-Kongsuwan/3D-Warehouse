@@ -934,11 +934,14 @@ body.light #viewport-label .vp-text {
     text-shadow: 0 1px 3px rgba(255,255,255,0.8);
 }
 #dev-credit {
+    position: fixed;
+    bottom: 134px;
+    right:  18px;
+    z-index: 9000;
     text-align: right;
-    line-height: 1.3;
+    line-height: 1.55;
     pointer-events: auto;
     user-select: none;
-    flex-shrink: 0;
 }
 #dev-credit .dev-line {
     display: block;
@@ -1243,12 +1246,15 @@ body.light .sc-age-card.active {
 
 /* ─── USAGE GUIDE (bottom-left viewport) ───────────────────── */
 #usage-guide {
+    position: fixed;
+    bottom: 134px;
+    left: 254px;
+    z-index: 9000;
     display: flex;
     gap: 10px;
     pointer-events: none;
     user-select: none;
     align-items: center;
-    flex-wrap: wrap;
 }
 .ug-item {
     display: flex;
@@ -1315,16 +1321,6 @@ body.light #demo-notice .dn-title { color: #0d5fa3; }
 }
 body.light #demo-notice .dn-text { color: rgba(30,60,100,0.7); }
 
-#bottom-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 5px 14px;
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-}
 #row-picker {
     background: var(--bg-panel);
     border-top: 1px solid var(--border);
@@ -1687,21 +1683,6 @@ body.light .loc-summary-title { color: #0f2a42; }
     <div style="display:flex;flex:1;overflow:hidden;position:relative;">
         <div id="canvas-container"></div>
     </div>
-    <div id="bottom-bar">
-        <div id="usage-guide">
-            <div class="ug-item"><span class="ug-key">drag</span> rotate</div>
-            <div class="ug-sep">·</div>
-            <div class="ug-item"><span class="ug-key">scroll</span> zoom</div>
-            <div class="ug-sep">·</div>
-            <div class="ug-item"><span class="ug-key">right-drag</span> pan</div>
-            <div class="ug-sep">·</div>
-            <div class="ug-item"><span class="ug-key">click label</span> isolate row</div>
-        </div>
-        <div id="dev-credit">
-            <span class="dev-line">Developed by Komsan Kongsuwan</span>
-            <span class="dev-line"><a href="mailto:komsan.kongsuwan@gmail.com" style="color:inherit;text-decoration:none;">komsan.kongsuwan@gmail.com</a> &middot; <a href="tel:+66817239680" style="color:inherit;text-decoration:none;">+66-81-723-9680</a></span>
-        </div>
-    </div>
     <div id="row-picker"></div>
 </div>
 
@@ -1975,30 +1956,6 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
 window.addEventListener("resize", () => {
     updateRendererSize();
 });
-
-// The canvas area also changes height for reasons that DON'T fire a window 'resize':
-// the row-picker filling with badges after the layout loads, the bottom info bar, font
-// loads, sidebar toggles. If the renderer/camera aspect is left at the value captured
-// while the layout was still settling, the scene renders stretched. A ResizeObserver
-// on the canvas container keeps the renderer matched to its real size at all times.
-if (typeof ResizeObserver !== 'undefined') {
-    let _resizeRaf = 0;
-    const _ro = new ResizeObserver(() => {
-        cancelAnimationFrame(_resizeRaf);
-        _resizeRaf = requestAnimationFrame(() => {
-            try {
-                updateRendererSize();
-                if (isTopView && orthoCamera && typeof getOrthoSize === 'function') {
-                    const { halfH, halfW } = getOrthoSize();
-                    orthoCamera.left = -halfW; orthoCamera.right = halfW;
-                    orthoCamera.top  =  halfH; orthoCamera.bottom = -halfH;
-                    orthoCamera.updateProjectionMatrix();
-                }
-            } catch (e) {}
-        });
-    });
-    try { _ro.observe(document.getElementById('canvas-container')); } catch (e) {}
-}
 
 // Orbit Controls - target warehouse centre
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -10012,6 +9969,15 @@ console.log('DEMO Warehouse Rack Simulator initialized');
 </div>
 
 <!-- Usage guide bottom-left -->
+<div id="usage-guide">
+    <div class="ug-item"><span class="ug-key">drag</span> rotate</div>
+    <div class="ug-sep">·</div>
+    <div class="ug-item"><span class="ug-key">scroll</span> zoom</div>
+    <div class="ug-sep">·</div>
+    <div class="ug-item"><span class="ug-key">right-drag</span> pan</div>
+    <div class="ug-sep">·</div>
+    <div class="ug-item"><span class="ug-key">click label</span> isolate row</div>
+</div>
 
 <!-- Demo notice banner -->
 <div id="demo-notice">
@@ -10038,6 +10004,11 @@ console.log('DEMO Warehouse Rack Simulator initialized');
     <div id="uploadProgressTrack"><div id="uploadProgressBar"></div></div>
 </div>
 
+<!-- Developer credit -->
+<div id="dev-credit">
+    <span class="dev-line">Developed by Komsan Kongsuwan</span>
+    <span class="dev-line"><a href="mailto:komsan.kongsuwan@gmail.com" style="color:inherit;text-decoration:none;">komsan.kongsuwan@gmail.com</a> &middot; <a href="tel:+66817239680" style="color:inherit;text-decoration:none;">+66-81-723-9680</a></span>
+</div>
 
 </body>
 </html>
