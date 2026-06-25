@@ -624,6 +624,10 @@ body.editing #legend {
     padding: 5px 7px;
 }
 .sp-in:focus { outline: none; border-color: var(--cyan); }
+.sp-color { flex: 0 0 auto; width: 30px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); cursor: pointer; }
+.sp-color::-webkit-color-swatch-wrapper { padding: 2px; }
+.sp-color::-webkit-color-swatch { border: none; border-radius: 4px; }
+.sp-color::-moz-color-swatch { border: none; border-radius: 4px; }
 .sp-rot { display: flex; gap: 3px; flex-shrink: 0; }
 .sp-rotbtn {
     width: 26px; height: 26px;
@@ -930,14 +934,11 @@ body.light #viewport-label .vp-text {
     text-shadow: 0 1px 3px rgba(255,255,255,0.8);
 }
 #dev-credit {
-    position: fixed;
-    bottom: 134px;
-    right:  18px;
-    z-index: 9000;
     text-align: right;
-    line-height: 1.55;
+    line-height: 1.3;
     pointer-events: auto;
     user-select: none;
+    flex-shrink: 0;
 }
 #dev-credit .dev-line {
     display: block;
@@ -1242,15 +1243,12 @@ body.light .sc-age-card.active {
 
 /* ─── USAGE GUIDE (bottom-left viewport) ───────────────────── */
 #usage-guide {
-    position: fixed;
-    bottom: 134px;
-    left: 254px;
-    z-index: 9000;
     display: flex;
     gap: 10px;
     pointer-events: none;
     user-select: none;
     align-items: center;
+    flex-wrap: wrap;
 }
 .ug-item {
     display: flex;
@@ -1317,6 +1315,21 @@ body.light #demo-notice .dn-title { color: #0d5fa3; }
 }
 body.light #demo-notice .dn-text { color: rgba(30,60,100,0.7); }
 
+#bottom-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 14px;
+    pointer-events: none;
+    background: linear-gradient(to top, rgba(8,14,22,0.82), rgba(8,14,22,0));
+}
+#bottom-bar #dev-credit { pointer-events: auto; }
 #row-picker {
     background: var(--bg-panel);
     border-top: 1px solid var(--border);
@@ -1678,6 +1691,21 @@ body.light .loc-summary-title { color: #0f2a42; }
 <div id="viewport-wrap">
     <div style="display:flex;flex:1;overflow:hidden;position:relative;">
         <div id="canvas-container"></div>
+        <div id="bottom-bar">
+            <div id="usage-guide">
+                <div class="ug-item"><span class="ug-key">drag</span> rotate</div>
+                <div class="ug-sep">·</div>
+                <div class="ug-item"><span class="ug-key">scroll</span> zoom</div>
+                <div class="ug-sep">·</div>
+                <div class="ug-item"><span class="ug-key">right-drag</span> pan</div>
+                <div class="ug-sep">·</div>
+                <div class="ug-item"><span class="ug-key">click label</span> isolate row</div>
+            </div>
+            <div id="dev-credit">
+                <span class="dev-line">Developed by Komsan Kongsuwan</span>
+                <span class="dev-line"><a href="mailto:komsan.kongsuwan@gmail.com" style="color:inherit;text-decoration:none;">komsan.kongsuwan@gmail.com</a> &middot; <a href="tel:+66817239680" style="color:inherit;text-decoration:none;">+66-81-723-9680</a></span>
+            </div>
+        </div>
     </div>
     <div id="row-picker"></div>
 </div>
@@ -1825,8 +1853,11 @@ function buildLayoutFromConfig(layoutRows) {
             subtype:         (r.subtype || 'cb').trim().toLowerCase(),
             featureHeight:      (r.height != null ? Number(r.height) : 2.0) * SCALE,
             wallStyle:       (r.wallStyle || 'mesh').toString().trim().toLowerCase(),
+            rackWidth:       (r.rackWidth != null && r.rackWidth > 0) ? Number(r.rackWidth) : null,
+            rackDepth:       (r.rackDepth != null && r.rackDepth > 0) ? Number(r.rackDepth) : null,
+            passages:        r.passages || '',
             srBays:          r.bays || 1,
-            srPPB:           (r.palletsPerBay === 2) ? 2 : 1,
+            srPPB:           Math.max(1, Math.floor(Number(r.palletsPerBay) || 1)),
             srLevels:        r.levels || 1,
             srPostH:         (r.postHeight != null ? Number(r.postHeight) : 6.0) * SCALE,
             cgCount:         r.count || 1,
@@ -1884,9 +1915,12 @@ function rebuildValidLocations(){
         if (geo.type === 'srack'){ cols = Math.max(1, (geo.srBays || 1) * (geo.srPPB || 1)); lvls = Math.max(1, geo.srLevels || 1); }
         else if (geo.type === 'cargo' || geo.type === 'ibc' || geo.type === 'drumpallet' || geo.type === 'jumbobag' || geo.type === 'steelcrate'){ cols = Math.max(1, geo.cgCount || 1); lvls = Math.max(1, geo.cgRows || 1); }
         else return;   // only srack/cargo/container-grid features hold inventory
+        const passages = (geo.type === 'srack') ? parsePassages(geo.passages) : [];
         for (let lv = 1; lv <= lvls; lv++)
-            for (let col = 1; col <= cols; col++)
+            for (let col = 1; col <= cols; col++){
+                if (passages.length && inPassageOpen(passages, col, lv)) continue;   // tunnel slots aren't storable (pallet-exact)
                 validLocations.add(makeLocKey(geo.locPattern, rowName, lv, col, cols, 1, 1));
+            }
     });
 }
 
@@ -1946,6 +1980,7 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
 window.addEventListener("resize", () => {
     updateRendererSize();
 });
+
 
 // Orbit Controls - target warehouse centre
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -2237,7 +2272,7 @@ function buildGrid() {
 
         // rack/cargo runs: extend to the far end of the run + across-aisle depth
         let runLen = 0, depth = 0;
-        if (geo.type === 'srack')      { runLen = Math.max(1, geo.srBays || 1) * ((geo.srPPB === 2 ? 2 : 1) * COLUMN_SPACING); depth = RACK_DEPTH; }
+        if (geo.type === 'srack')      { runLen = Math.max(1, geo.srBays || 1) * (Math.max(1, Math.floor(geo.srPPB || 1)) * COLUMN_SPACING); depth = RACK_DEPTH; }
         else if (geo.type === 'cargo') { runLen = Math.max(1, geo.cgCount || 1) * Math.max(PALLET_W, 1.5 * SCALE); depth = Math.max(1, geo.cgRows || 1) * PALLET_W; }
         if (runLen > 0) {
             if (geo.orientation === 0 || geo.orientation === 180) { eat(geo.xPos + runLen, geo.zStart); eat(geo.xPos, geo.zStart - depth); }
@@ -3920,6 +3955,88 @@ function buildWalls() {
     });
 }
 
+let metalWallMeshes = [];
+
+// ── METAL SHEET WALL FEATURE ───────────────────────────────────────
+// Corrugated steel cladding along a segment (X1,Z1)->(X2,Z2), Height tall: a ribbed
+// metal sheet on BOTH faces, with a steel frame grid (vertical posts + horizontal
+// girts forming rectangular panels) on ONE side only (Frame side = front/back).
+// Colour sets the sheet; the steel frame is a lighter shade of it.
+function buildMetalWalls() {
+    metalWallMeshes.forEach(g => { scene.remove(g); disposeObject3D(g); });
+    metalWallMeshes = [];
+
+    allLayoutRows.forEach(rowName => {
+        const geo = rowGeometry.get(rowName);
+        if (!geo || geo.type !== 'metalwall') return;
+
+        const p1x = geo.xPos, p1z = geo.zStart, p2x = geo.x2, p2z = geo.z2;
+        const dx = p2x - p1x, dz = p2z - p1z;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.001) return;
+
+        const h = (geo.featureHeight && geo.featureHeight > 0) ? geo.featureHeight : 3.0 * SCALE;
+        const sheetCol = parseAreaColor(geo.subtype || 'd8dde2').fill;
+        const lighten = (hex, f) => {
+            const r = Math.min(255, (((hex >> 16) & 255) + (255 - ((hex >> 16) & 255)) * f)) | 0;
+            const g = Math.min(255, (((hex >>  8) & 255) + (255 - ((hex >>  8) & 255)) * f)) | 0;
+            const b = Math.min(255, (( hex        & 255) + (255 - ( hex        & 255)) * f)) | 0;
+            return (r << 16) | (g << 8) | b;
+        };
+        const frameSide = (geo.wallStyle === 'back') ? -1 : 1;   // which face carries the steel frame
+        const cx = (p1x + p2x) / 2, cz = (p1z + p2z) / 2;
+
+        const group = new THREE.Group();
+        group.position.set(cx, h / 2 + regionHeightAt(cx, cz), cz);
+        group.rotation.y = Math.atan2(-dz, dx);   // align local +X with the segment
+
+        const sheetMat = new THREE.MeshStandardMaterial({ color: sheetCol, roughness: 0.5, metalness: 0.55, side: THREE.DoubleSide });
+        const ribMat   = new THREE.MeshStandardMaterial({ color: sheetCol, roughness: 0.42, metalness: 0.62 });
+        const frameMat = new THREE.MeshStandardMaterial({ color: lighten(sheetCol, 0.20), roughness: 0.55, metalness: 0.5 });
+
+        const sheetT = 0.05 * SCALE;     // base sheet thickness
+        const ribD   = 0.04 * SCALE;     // how far the ribs stand proud of the sheet
+        const ribW   = 0.05 * SCALE;     // rib width
+
+        // base sheet panel
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(len, h, sheetT), sheetMat);
+        panel.castShadow = true; panel.receiveShadow = true; group.add(panel);
+
+        // vertical corrugation ribs on BOTH faces (the ribbed metal look)
+        const ribStep = 0.28 * SCALE;
+        const nRibs = Math.max(1, Math.round(len / ribStep));
+        for (let i = 0; i <= nRibs; i++) {
+            const px = -len / 2 + (len * i / nRibs);
+            [1, -1].forEach(sgn => {
+                const rib = new THREE.Mesh(new THREE.BoxGeometry(ribW, h, ribD), ribMat);
+                rib.position.set(px, 0, sgn * (sheetT / 2 + ribD / 2));
+                group.add(rib);
+            });
+        }
+
+        // steel frame grid on ONE side only (vertical posts + horizontal girts -> rectangular panels)
+        const memW = 0.16 * SCALE, memT = 0.12 * SCALE;          // frame member width / how proud it stands
+        const fz   = frameSide * (sheetT / 2 + ribD + memT / 2);  // frame sits proud of the ribbed face
+        const panelW = 3.0 * SCALE, panelH = 2.4 * SCALE;        // target panel size of the frame grid
+        const nPosts = Math.max(1, Math.round(len / panelW));
+        for (let i = 0; i <= nPosts; i++) {
+            const px = -len / 2 + (len * i / nPosts);
+            const post = new THREE.Mesh(new THREE.BoxGeometry(memW, h, memT), frameMat);
+            post.position.set(px, 0, fz); post.castShadow = true; group.add(post);
+        }
+        const nGirts = Math.max(1, Math.round(h / panelH));
+        for (let j = 0; j <= nGirts; j++) {
+            const py = -h / 2 + (h * j / nGirts);
+            const girt = new THREE.Mesh(new THREE.BoxGeometry(len, memW, memT), frameMat);
+            girt.position.set(0, py, fz); girt.castShadow = true; group.add(girt);
+        }
+
+        group.userData.rowName = rowName; group.userData.subtype = geo.subtype; group.userData.editable = true;
+        scene.add(group);
+        metalWallMeshes.push(group);
+    });
+}
+
 
 // ── ROOM FEATURE ─────────────────────────────────────────────────────────────
 // A temperature-control / special-storage room: 4 walls around a footprint
@@ -5025,7 +5142,7 @@ function gatherDoorOpenings() {
     allLayoutRows.forEach(rowName => {
         const geo = rowGeometry.get(rowName);
         if (geo && geo.type === 'fixture' && geo.fxState === 'open' &&
-            (geo.subtype === 'shutter' || geo.subtype === 'slide')) {
+            (geo.subtype === 'shutter' || geo.subtype === 'slide' || geo.subtype === 'pvc_curtain')) {
             const base = regionHeightAt(geo.xPos, geo.zStart);   // sill = raised floor under the door (0 = on the ground)
             const ow = (geo.fxW && geo.fxW > 0) ? geo.fxW : 3.0 * SCALE;   // opening width  = door W (default 3 m)
             const oh = (geo.fxH && geo.fxH > 0) ? geo.fxH : 4.0 * SCALE;   // opening height = door H (default 4 m)
@@ -5160,7 +5277,7 @@ function buildFixtures() {
         const region = regionHeightAt(geo.xPos, geo.zStart);
         const isCeiling = (geo.subtype === 'sprinkler' || geo.subtype === 'hibay' || geo.subtype === 'smoke');
         const isBridge  = (geo.subtype === 'dock_leveller');
-        const isOnFloorDoor = (geo.subtype === 'shutter' || geo.subtype === 'slide' || geo.subtype === 'fire_exit' || geo.subtype === 'dock_shelter');
+        const isOnFloorDoor = (geo.subtype === 'shutter' || geo.subtype === 'slide' || geo.subtype === 'fire_exit' || geo.subtype === 'dock_shelter' || geo.subtype === 'pvc_curtain');
         let H, groupY;
         if (isBridge)            { H = (region > 0) ? region : 1.2 * SCALE; groupY = 0; }       // deck top = dock floor; pit/frame down to ground
         else if (isOnFloorDoor)  { H = 0; groupY = region; }                                    // door/plate sits on the floor under it
@@ -5616,6 +5733,35 @@ function buildFixtureModel(grp, type, H, col, state, geo) {
             buildPalletWithCartons(grp, n, (col != null ? col : 0xc8a06a));
             break;
         }
+        case 'pvc_curtain': {                   // overlapping translucent PVC strip curtain hung in a doorway, built on BOTH wall faces (like the shutter). W = opening width, H = curtain height. State 'open' pulls the strips aside and (with the wall) leaves a see-through doorway.
+            const w  = (geo && geo.fxW && geo.fxW > 0) ? geo.fxW : 3.0 * SCALE;   // opening width
+            const dh = (geo && geo.fxH && geo.fxH > 0) ? geo.fxH : 4.0 * SCALE;   // curtain height
+            const stripCol  = (col != null) ? col : 0xe0a81e;                     // amber PVC
+            const railMat   = M(0x6a717a, { metalness: 0.6,  roughness: 0.4 });   // steel mounting rail
+            const bracketMat= M(0x4a4f55, { metalness: 0.55, roughness: 0.45 });
+            const stripMat  = M(stripCol, { roughness: 0.25, metalness: 0.0, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+            const stripW = 0.22 * SCALE, stripT = 0.03 * SCALE, step = stripW * 0.5;
+            const n = Math.max(1, Math.round(w / step));
+            const stripH = dh - 0.04 * SCALE;
+            // build the curtain on BOTH wall faces, so it reads the same inside and out
+            [1, -1].forEach(sgn => {
+                const zc = sgn * (0.5 + stripT);                      // just outside each wall face
+                box(w + 0.3 * SCALE, 0.18 * SCALE, 0.34 * SCALE, 0, dh + 0.09 * SCALE, zc, railMat);   // top mounting rail
+                [-1, 1].forEach(s => box(0.14 * SCALE, 0.46 * SCALE, 0.40 * SCALE, s * (w / 2 + 0.08 * SCALE), dh + 0.04 * SCALE, zc, bracketMat));  // end brackets
+                for (let i = 0; i <= n; i++) {
+                    let px = -w / 2 + i * step;
+                    if (px > w / 2 + 1e-6) break;
+                    if (open) {                                       // pull the strips tight to each side, leaving the centre clear
+                        const half = (px < 0) ? -1 : 1, t = Math.abs(px) / (w / 2 || 1);
+                        px = half * (w / 2) * (0.80 + 0.20 * t);
+                    }
+                    const zoff = zc + ((i % 2 === 0) ? stripT * 0.5 : -stripT * 0.5);
+                    const strip = box(stripW, stripH, stripT, px, stripH / 2 + 0.02 * SCALE, zoff, stripMat);
+                    strip.castShadow = false;
+                }
+            });
+            break;
+        }
         default: {                              // unknown type → small marker box
             box(0.6 * SCALE, 0.6 * SCALE, 0.6 * SCALE, 0, H, 0, M(col || 0xff5577));
         }
@@ -5635,6 +5781,75 @@ let totalSlotCount = 0;   // total Selective Rack + Cargo Pallet positions (capa
 let lodStructures = [];
 const LOD_STRUCT_DIST = 1100; // world units (~275 m): full frame within this, collapse when zoomed far out
 
+// Parse a Selective-Rack passage-way (forklift tunnel) spec: comma-separated
+// "startPallet-widthPallets-openLevels" (e.g. "3-2-5, 8-2-5" = a 2-pallet-wide tunnel at
+// pallet 3 with the bottom 5 levels open, and another at pallet 8). Returns [{start,width,open}].
+function parsePassages(spec){
+    if (!spec) return [];
+    return String(spec).split(',').map(t => t.trim()).filter(Boolean).map(tok => {
+        const p = tok.split('-').map(n => parseInt(n, 10));
+        return { start: Math.max(1, p[0] || 1), width: Math.max(1, p[1] || 1), open: Math.max(1, p[2] || 1) };
+    });
+}
+// True if pallet column `col` (1-indexed) at level `level` (1-indexed) is inside a tunnel opening.
+function inPassageOpen(passages, col, level){
+    for (const P of passages){
+        if (col >= P.start && col <= P.start + P.width - 1 && level <= P.open) return true;
+    }
+    return false;
+}
+// Same, but ROUNDED TO WHOLE BAYS — a load beam spans a whole bay, so if a tunnel touches any
+// pallet of a bay the entire bay is treated as open (no half-bay beams / floating pallets).
+function colOpen(passages, ppb, col, level){
+    const bay = Math.floor((col - 1) / ppb);
+    const c0 = bay * ppb + 1, c1 = bay * ppb + ppb;        // pallet columns of this bay
+    for (const P of passages){
+        if (level <= P.open && !(P.start + P.width - 1 < c0 || P.start > c1)) return true;
+    }
+    return false;
+}
+
+// Yellow/black powder-coated steel safety barrier (inverted-U guard rail), placed in the
+// aisle at the end of a selective-rack row. Built in local space (width along X, height
+// along Y, thin in Z), then dropped at world (cx,cz) and rotated to face along the run —
+// the same way the row-ID sign faces.
+function buildSafetyBarrier(parent, cx, cz, runAlongX, W, H, col) {
+    const r  = 0.05 * SCALE;                                  // tube radius (~5 cm)
+    const cR = Math.min(0.16 * SCALE, H * 0.3, W * 0.3);      // rounded-corner radius
+    const yellow = new THREE.MeshStandardMaterial({ color: col || 0xf2c20c, roughness: 0.5, metalness: 0.35 });
+    const black  = new THREE.MeshStandardMaterial({ color: 0x141410, roughness: 0.55, metalness: 0.25 });
+    const g = new THREE.Group();
+    const legTop = Math.max(0.05 * SCALE, H - cR);
+    // base plates + vertical legs at the outer edges
+    [-1, 1].forEach(s => {
+        const x = s * (W / 2);
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(r * 4.5, 0.05 * SCALE, r * 4.5), yellow);
+        plate.position.set(x, 0.025 * SCALE, 0); plate.receiveShadow = true; g.add(plate);
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(r, r, legTop, 16), yellow);
+        leg.position.set(x, legTop / 2, 0); leg.castShadow = true; g.add(leg);
+    });
+    // rounded top corners (quarter tori in the XY plane)
+    const lc = new THREE.Mesh(new THREE.TorusGeometry(cR, r, 10, 14, Math.PI / 2), yellow);
+    lc.position.set(-W / 2 + cR, H - cR, 0); lc.rotation.z = Math.PI / 2; g.add(lc);
+    const rc = new THREE.Mesh(new THREE.TorusGeometry(cR, r, 10, 14, Math.PI / 2), yellow);
+    rc.position.set(W / 2 - cR, H - cR, 0); g.add(rc);
+    // top rail
+    const railLen = Math.max(0.05 * SCALE, W - 2 * cR);
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(r, r, railLen, 16), yellow);
+    rail.rotation.z = Math.PI / 2; rail.position.set(0, H, 0); rail.castShadow = true; g.add(rail);
+    // black hazard bands on legs + rail
+    const band = (x, y, axis) => {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.08, r * 1.08, 0.13 * SCALE, 16), black);
+        if (axis === 'x') m.rotation.z = Math.PI / 2;
+        m.position.set(x, y, 0); g.add(m);
+    };
+    [0.30, 0.60].forEach(f => { band(-W / 2, f * legTop, 'y'); band(W / 2, f * legTop, 'y'); });
+    [-0.3, 0, 0.3].forEach(f => band(f * railLen, H, 'x'));
+    g.position.set(cx, 0, cz);
+    if (runAlongX) g.rotation.y = Math.PI / 2;               // face along the run, like the row sign
+    parent.add(g);
+}
+
 function buildSelectiveRacks() {
     srackMeshes.forEach(g => { scene.remove(g); disposeObject3D(g); });
     srackMeshes = [];
@@ -5646,13 +5861,21 @@ function buildSelectiveRacks() {
         if (!geo || geo.type !== 'srack') return;
 
         const bays   = Math.max(1, geo.srBays || 1);
-        const ppb    = (geo.srPPB === 2) ? 2 : 1;
+        const ppb    = Math.max(1, Math.floor(geo.srPPB || 1));
         const levels = Math.max(1, geo.srLevels || 1);
         srSlots += bays * ppb * levels;
         const postH  = (geo.srPostH && geo.srPostH > 0) ? geo.srPostH : 6 * SCALE;
-        const bayW   = ppb * COLUMN_SPACING;     // run length of one bay
-        const depth  = RACK_DEPTH;               // across (1 m)
+        const colW   = (geo.rackWidth && geo.rackWidth > 0) ? geo.rackWidth * SCALE : COLUMN_SPACING;  // per pallet-column run width
+        const bayW   = ppb * colW;               // run length of one bay
+        const depth  = (geo.rackDepth && geo.rackDepth > 0) ? geo.rackDepth * SCALE : RACK_DEPTH;        // across
         const runLen = bays * bayW;
+        const pitch  = postH / levels;
+        const totalCols = bays * ppb;
+        const passages = parsePassages(geo.passages).filter(P => P.start <= totalCols);   // forklift tunnels
+        // A load beam spans a whole bay, so a bay is "open" only when the WHOLE bay is inside a
+        // tunnel; a bay only partially covered keeps its beam (per the >2-pallet rule).
+        const bayCovered = (b, P) => { const c0 = b * ppb + 1, c1 = b * ppb + ppb; return c0 >= P.start && c1 <= P.start + P.width - 1; };
+        const bayOpenAt  = (b, level) => passages.some(P => level <= P.open && bayCovered(b, P));
 
         const orientation = geo.orientation || 0;
         const runAlongX = (orientation === 0 || orientation === 180);
@@ -5690,9 +5913,27 @@ function buildSelectiveRacks() {
         }
 
         // Upright frames (front dd=0, back dd=depth) at each bay boundary + diagonal bracing
+        // ── Variable-width bay layout driven by passages ──
+        // Frames sit at every natural ppb-bay boundary PLUS each tunnel's EXACT pallet edges, so a
+        // tunnel opens exactly the pallets requested (e.g. 3) even when that splits a 2-pallet bay;
+        // the leftover pallet just becomes a narrower bay. Boundaries are in PALLET units
+        // (0..totalCols); a "cell" (= one bay) is the span between two adjacent frames.
+        const openEdges = passages
+            .map(P => ({ L: Math.max(0, P.start - 1), R: Math.min(totalCols, P.start + P.width - 1), open: P.open }))
+            .filter(e => e.R > e.L);
+        const bSet = new Set([0, totalCols]);
+        for (let bb = 0; bb <= totalCols; bb += ppb) bSet.add(Math.min(bb, totalCols));   // natural ppb-bay frames
+        openEdges.forEach(e => { bSet.add(e.L); bSet.add(e.R); });                         // tunnel-edge frames
+        const bounds = [...bSet].sort((a, b) => a - b);
+        const frameInside = (bd) => openEdges.some(e => bd > e.L + 1e-9 && bd < e.R - 1e-9);            // strictly inside a tunnel
+        const cellOpenAt  = (a, b, level) => openEdges.some(e => a >= e.L - 1e-9 && b <= e.R + 1e-9 && level <= e.open);
+
         const nz = Math.max(2, Math.round(postH / (1.0 * SCALE)));
-        for (let i = 0; i <= bays; i++) {
-            const rd = i * bayW;
+        // A frame strictly inside a tunnel opening is removed entirely (clears the drive-through and
+        // the bridge above it); frames at the tunnel edges stay full to carry the bridge.
+        bounds.forEach(bd => {
+            if (frameInside(bd)) return;
+            const rd = bd * colW;
             [0, depth].forEach(dd => {
                 const [cx, cz] = world(rd, dd);
                 const p = new THREE.Mesh(new THREE.BoxGeometry(post, postH, post), postMat);
@@ -5705,8 +5946,8 @@ function buildSelectiveRacks() {
                 const [cx, cz] = world(rd, (k % 2 === 0) ? 0 : depth);
                 pts.push(new THREE.Vector3(cx, (k / nz) * postH, cz));
             }
-            structGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), braceMat));
-        }
+            if (pts.length > 1) structGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), braceMat));
+        });
 
         // Row-ID placard mounted on the first bay's first upright frame (rack-end sign,
         // part of the structure). White card, square corners, max 3 chars, near the top.
@@ -5721,21 +5962,42 @@ function buildSelectiveRacks() {
             structGroup.add(sign);                        // part of the frame (shares LOD)
         }
 
-        const pitch = postH / levels;
+        // Safety barrier (yellow/black guard rail) standing in the aisle at the row end,
+        // facing the same way as the row-ID sign. One per row (added to the always-on group).
+        {
+            const barW = depth, barH = 0.8 * SCALE;            // barrier spans the rack depth
+            const barOff = 0.5 * SCALE;                       // 0.5 m in front of the end frame
+            const [bx, bz] = world(-barOff, depth / 2);       // row end, centred across the depth
+            buildSafetyBarrier(group, bx, bz, runAlongX, barW, barH);
+        }
+
+        // Safety barriers framing each tunnel mouth — one just outside each side of the (bay-rounded)
+        // opening, standing in the aisle in front of the rack with a clear gap from the side posts.
+        openEdges.forEach(e => {
+            const gap = 0.28 * SCALE;
+            [ e.L * colW + gap, e.R * colW - gap ].forEach(rd => {        // a guard rail just inside each tunnel-side frame
+                const [bx, bz] = world(rd, depth / 2);                    // runs the rack depth, through the drive-through
+                buildSafetyBarrier(group, bx, bz, runAlongX, depth * 0.92, 0.8 * SCALE);
+            });
+        });
+
         const runBox = (alongRun, hgt, across) => runAlongX
             ? new THREE.BoxGeometry(alongRun, hgt, across)
             : new THREE.BoxGeometry(across, hgt, alongRun);
 
-        // Load beams: bottom of each level above the floor (level 1 sits on the floor)
+        // Load beams: bottom of each level above the floor (level 1 sits on the floor). A beam
+        // spans a whole bay, so if a tunnel touches any pallet of a bay the whole bay's beam is
+        // removed (the opening snaps to whole bays — no leftover beam on an odd-pallet tunnel).
         for (let j = 2; j <= levels; j++) {
             const y = (j - 1) * pitch;
-            for (let b = 0; b < bays; b++) {
+            for (let ci = 0; ci < bounds.length - 1; ci++) {
+                const a = bounds[ci], b = bounds[ci + 1];
+                if (b - a < 1e-9 || cellOpenAt(a, b, j)) continue;        // open cell → no beam (levels above = bridge)
+                const cw = (b - a) * colW;
                 [0, depth].forEach(dd => {
-                    const [bx, bz] = world((b + 0.5) * bayW, dd);
-                    const bm = new THREE.Mesh(runBox(bayW, beamT, beamT), beamMat);
-                    bm.position.set(bx, y, bz);
-                    bm.castShadow = true;
-                    structGroup.add(bm);
+                    const [bx, bz] = world((a + b) / 2 * colW, dd);
+                    const bm = new THREE.Mesh(runBox(cw, beamT, beamT), beamMat);
+                    bm.position.set(bx, y, bz); bm.castShadow = true; structGroup.add(bm);
                 });
             }
         }
@@ -5743,34 +6005,31 @@ function buildSelectiveRacks() {
         // Pallets + cargo on OCCUPIED positions only (empty = bare slot); inventory-linked
         const baseH = 0.12 * SCALE, clearance = 0.18 * SCALE;
         const cargoH = Math.max(0.3 * SCALE, pitch - baseH - clearance);
-        const palRun = COLUMN_SPACING * 0.8, palDepth = depth * 0.9;
+        const palRun = colW * 0.8, palDepth = depth * 0.9;
         const cgRun = palRun * 0.95, cgDepth = palDepth * 0.95;
-        const totalCols = bays * ppb;
         const fillMode = (geo.locPattern || '').trim() === '*';   // quick-display: fill every slot, no inventory link
         const fillColor = new THREE.Color(0xc9b38a);
         const occ = [];        // occupied positions (every slot in fill mode) → pallet + box
         for (let j = 1; j <= levels; j++) {
             const yb = (j - 1) * pitch;
-            for (let b = 0; b < bays; b++) {
-                for (let sub = 0; sub < ppb; sub++) {
-                    const col = b * ppb + sub + 1;
-                    let customer = null, locKey = null, boxColor = fillColor;
-                    if (fillMode){
-                        srOcc++;
-                    } else {
-                        locKey = makeLocKey(geo.locPattern, rowName, j, col, totalCols, 1, 1);
-                        if (validLocations.size > 0 && !validLocations.has(locKey)) continue;
-                        const items = locationMap.get(locKey);
-                        customer = items ? items[0].customer : null;
-                        if (!customer) continue;            // empty = bare slot (nothing drawn)
-                        customerCount[customer] = (customerCount[customer] || 0) + 1;
-                        srOcc++;
-                        boxColor = getCustomerColor(customer);
-                    }
-                    const rd = b * bayW + (sub + 0.5) * COLUMN_SPACING;
-                    const [cx, cz] = world(rd, depth / 2);
-                    occ.push({ cx, cz, yb, color: boxColor, customer, locKey });
+            for (let col = 1; col <= totalCols; col++) {
+                if (inPassageOpen(passages, col, j)) continue;   // tunnel opening (pallet-exact): no pallet here
+                let customer = null, locKey = null, boxColor = fillColor;
+                if (fillMode){
+                    srOcc++;
+                } else {
+                    locKey = makeLocKey(geo.locPattern, rowName, j, col, totalCols, 1, 1);
+                    if (validLocations.size > 0 && !validLocations.has(locKey)) continue;
+                    const items = locationMap.get(locKey);
+                    customer = items ? items[0].customer : null;
+                    if (!customer) continue;            // empty = bare slot (nothing drawn)
+                    customerCount[customer] = (customerCount[customer] || 0) + 1;
+                    srOcc++;
+                    boxColor = getCustomerColor(customer);
                 }
+                const rd = (col - 0.5) * colW;
+                const [cx, cz] = world(rd, depth / 2);
+                occ.push({ cx, cz, yb, color: boxColor, customer, locKey });
             }
         }
         if (occ.length > 0) {
@@ -6124,6 +6383,9 @@ function buildRack(opts) {
 
     // Build walls from layout
     buildWalls();
+
+    // Build metal sheet walls (corrugated cladding + steel frame on one side)
+    buildMetalWalls();
 
     // Build rooms (temperature / special storage)
     buildRooms();
@@ -7152,6 +7414,16 @@ function parseLayoutBuffer(data, fileName) {
                          type: 'wall', maxColumns: 1, maxLevels: 1, orientation: 0, palletsPerLevel: 1, locPattern: '' };
             });
 
+            // Metal Sheet Wall: Name | X1 | Z1 | Width(ΔX) | Length(ΔZ) | Height | Colour | Frame side(front/back)
+            readSheet('Metal Wall', (row, hdr) => {
+                if (row[3] === null || row[3] === undefined || row[4] === null || row[4] === undefined) return null;
+                return { xPos: numOf(row[1]), zStart: numOf(row[2]), x2: farCoord(hdr,3,numOf(row[1]),numOf(row[3])), z2: farCoord(hdr,4,numOf(row[2]),numOf(row[4])),
+                         height: (numOf(row[5]) && numOf(row[5]) > 0) ? numOf(row[5]) : 3.0,
+                         subtype: (strOf(row[6]) || 'd8dde2').toLowerCase(),
+                         wallStyle: (strOf(row[7]) || 'front').toLowerCase(),
+                         type: 'metalwall', maxColumns: 1, maxLevels: 1, orientation: 0, palletsPerLevel: 1, locPattern: '' };
+            });
+
             // Room: Name | X1 | Z1 | X2 | Z2 | Height | Style(transparent/opaque) | Colour. Doors are placed via the Fixture sheet.
             readSheet('Room', (row, hdr) => {
                 if (row[3] === null || row[3] === undefined || row[4] === null || row[4] === undefined) return null;
@@ -7406,6 +7678,7 @@ function parseLayoutBuffer(data, fileName) {
                 ['Sprinkler','sprinkler',['fh','c','w','l','h']],
                 ['Hi-Bay Light','hibay',['fh','c','w','l','h']],
                 ['Smoke Detector','smoke',['fh','c','w','l','h']],
+                ['PVC Strip Curtain','pvc_curtain',['o','st','c','w','h']],
             ];
             FX_SHEETS.forEach(([sheet, type, cols]) => {
                 readSheet(sheet, row => {
@@ -7432,7 +7705,7 @@ function parseLayoutBuffer(data, fileName) {
             // Selective Rack: Name | X | Z | Bays | Pallets Per Bay | Levels | Post Height | Orientation | Colour | Location Pattern
             readSheet('Selective Rack', row => {
                 const bays = numOf(row[3]) || 1;
-                const ppb  = (numOf(row[4]) === 2) ? 2 : 1;
+                const ppb  = Math.max(1, Math.floor(numOf(row[4]) || 1));
                 const lv   = numOf(row[5]) || 1;
                 return {
                     xPos: numOf(row[1]), zStart: numOf(row[2]),
@@ -7442,6 +7715,9 @@ function parseLayoutBuffer(data, fileName) {
                     subtype: (strOf(row[8]) || 'e8842b').toLowerCase(), type: 'srack',
                     maxColumns: bays * ppb, maxLevels: lv, palletsPerLevel: 1,
                     locPattern: strOf(row[9]) || '{row}-{level}-{column}',
+                    rackWidth: (numOf(row[10]) && numOf(row[10]) > 0) ? numOf(row[10]) : null,
+                    rackDepth: (numOf(row[11]) && numOf(row[11]) > 0) ? numOf(row[11]) : null,
+                    passages: strOf(row[12]) || '',
                 };
             });
 
@@ -7518,7 +7794,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     const PALETTE = [
         ['Shutter','shutter'], ['Slide Door','slide'], ['Dock Shelter','dock_shelter'],
         ['Fire Exit','fire_exit'], ['Glass Swing','glass_swing'], ['Glass Slide','glass_slide'],
-        ['Slide Window','slide_window'], ['Louver','louver'], ['Parking Lane','parking_lane'],
+        ['Slide Window','slide_window'], ['Louver','louver'], ['PVC Strip Curtain','pvc_curtain'], ['Parking Lane','parking_lane'],
         ['Two Lane Road','two_lane_road'], ['Road Connector','road_connector'], ['Carton Pallet','carton_pallet'],
         ['Stairs','stairs'], ['Ramp','ramp'], ['Dock Leveller','dock_leveller'],
         ['Extinguisher','extinguisher'], ['CCTV','cctv'], ['Sprinkler','sprinkler'],
@@ -7533,7 +7809,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         ['6-Wheel Truck','container:6w'], ['12 m Trailer','container:12m'], ['Car','container:car'],
         ['Stacker','stacker'], ['Conveyor','conveyor'], ['Workbench','workbench'], ['Wrapping Machine','wrapper'],
         ['Area','area'], ['Cube','cube'], ['Room','room'], ['Office','office'], ['Mezzanine','mezzanine'],
-        ['Wall (Mesh)','wall:mesh'], ['Wall (Solid)','wall:solid'], ['Line','line'],
+        ['Wall (Mesh)','wall:mesh'], ['Wall (Solid)','wall:solid'], ['Metal Sheet Wall','metalwall'], ['Line','line'],
         ['Selective Rack','srack'], ['Cargo Pallet','cargo'], ['Building','building'], ['Raised Floor','raisedfloor'], ['Text','text'],
     ];
     // Ordered category groups for the palette. Every PALETTE key should appear in exactly
@@ -7544,8 +7820,8 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         ['Equipment & People',['worker','conveyor','workbench','wrapper']],
         ['Storage & Racking', ['srack','cargo','carton_pallet','ibc','drumpallet','jumbobag','steelcrate']],
         ['Zones & Areas',     ['area','cube','room','office','mezzanine','raisedfloor']],
-        ['Structure',         ['wall:mesh','wall:solid','line','building','text']],
-        ['Doors & Openings',  ['shutter','slide','dock_shelter','fire_exit','glass_swing','glass_slide','slide_window','louver']],
+        ['Structure',         ['wall:mesh','wall:solid','metalwall','line','building','text']],
+        ['Doors & Openings',  ['shutter','slide','dock_shelter','fire_exit','glass_swing','glass_slide','slide_window','louver','pvc_curtain']],
         ['Safety',            ['extinguisher','cctv','sprinkler','hibay','smoke','hosereel','hydrant']],
         ['Floor & Roadway',   ['parking_lane','two_lane_road','road_connector','stairs','ramp','dock_leveller']],
     ];
@@ -7556,7 +7832,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         forklift:'🚜', worker:'🧍', container:'🚚',
         stacker:'🛒', conveyor:'📬', workbench:'🛠️', wrapper:'🎞️',
         area:'🟦', cube:'🧊', room:'🏠', office:'🏢', mezzanine:'🗄️', wall:'🧱', line:'➖',
-        srack:'🗃️', building:'🏗️', raisedfloor:'🟫', text:'🔤', cargo:'📦' };
+        srack:'🗃️', building:'🏗️', raisedfloor:'🟫', text:'🔤', cargo:'📦', pvc_curtain:'🎐', metalwall:'🧱' };
 
     // Variant tiles: one palette tile + thumbnail per type/style, while still using the
     // SAME base feature (one Excel sheet). The chosen type is stored in `field` on the row.
@@ -7851,6 +8127,23 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             rebuild:buildWalls,
             defaults:{ height:2.0, subtype:'888888', wallStyle:'mesh' },
         },
+        metalwall: {
+            label:'Metal Sheet Wall', type:'metalwall', sheet:'Metal Wall', footprint:{ dw:4, dl:0 },
+            thumb:(grp, v)=>{
+                const sheetMat = new THREE.MeshStandardMaterial({ color:0xccd2d8, roughness:0.5, metalness:0.6 });
+                const frameMat = new THREE.MeshStandardMaterial({ color:0xeef1f4, roughness:0.55, metalness:0.5 });
+                const add = (w, h, d, x, y, z, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); grp.add(m); };
+                add(10, 6, 0.4, 0, 0, 0, sheetMat);                                          // base sheet
+                for (let i = -4.5; i <= 4.5; i += 0.9) add(0.16, 6, 0.5, i, 0, 0.32, sheetMat);  // vertical ribs (front face)
+                for (let i = -1; i <= 1; i++) add(0.45, 6, 0.62, i * 3.3, 0, 0.64, frameMat);    // frame posts (one side)
+                [2.6, 0, -2.6].forEach(yy => add(10, 0.5, 0.62, 0, yy, 0.64, frameMat));          // frame girts
+            },
+            fields:[ SEG_ORIENT, SEG_LEN, { field:'height', label:'Height (m)', type:'number', step:'0.1' },
+                     { field:'subtype', label:'Colour (hex)', type:'color' },
+                     { field:'wallStyle', label:'Frame side', type:'select', options:['front','back'] } ],
+            rebuild:buildMetalWalls,
+            defaults:{ height:3.0, subtype:'d8dde2', wallStyle:'front' },
+        },
         line: {
             label:'Line', type:'line', sheet:'Lines', footprint:{ dw:4, dl:0 },
             thumb:(grp)=>{ grp.add(tBox(10, 0.2, 0.4, 0xffffff)); },
@@ -7885,13 +8178,16 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                 [3,6].forEach(y=>{ [-1,1].forEach(z=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(6.4,0.3,0.3),beamMat); b.position.set(0,y,z); grp.add(b); }); });
             },
             fields:[ 'o', { field:'bays', label:'Bays', type:'number', step:'1' },
-                     { field:'palletsPerBay', label:'Pallets/bay (1\u20132)', type:'number', step:'1' },
+                     { field:'palletsPerBay', label:'Pallets/bay', type:'number', step:'1' },
                      { field:'levels', label:'Levels', type:'number', step:'1' },
                      { field:'postHeight', label:'Post height (m)', type:'number', step:'0.1' },
+                     { field:'rackWidth', label:'Width (m)', type:'number', step:'0.1' },
+                     { field:'rackDepth', label:'Depth (m)', type:'number', step:'0.1' },
+                     { field:'passages', label:'Passage ways', type:'text', placeholder:'e.g. 3-2-5' },
                      { field:'subtype', label:'Colour (hex)', type:'color' },
                      { field:'locPattern', label:'Location pattern (*=fill all)', type:'text' } ],
             rebuild:buildSelectiveRacks,
-            defaults:{ orientation:90, bays:10, palletsPerBay:2, levels:6, postHeight:8.0, subtype:'e8842b', locPattern:'{row}-{level}-{column}' },
+            defaults:{ orientation:90, bays:10, palletsPerBay:2, levels:6, postHeight:8.0, rackWidth:1.5, rackDepth:1.0, passages:'', subtype:'e8842b', locPattern:'{row}-{level}-{column}' },
         },
         cargo: {
             label:'Cargo Pallet', type:'cargo', sheet:'Cargo Pallet',
@@ -7930,7 +8226,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         else if (r.type === 'wrapper'){ const d = r.featWidth || 1.5; r.x2 = r.xPos + d + 0.8; r.z2 = r.zStart + d; }
         else if (r.type === 'stacker'){ r.x2 = r.xPos + 3.3; r.z2 = r.zStart + 1.3; }
         else if (r.type === 'srack'){   // derive slot counts from bays / pallets-per-bay / levels (mirrors the parser)
-            const ppb = (Number(r.palletsPerBay) === 2) ? 2 : 1;
+            const ppb = Math.max(1, Math.floor(Number(r.palletsPerBay) || 1));
             const bays = Math.max(1, Math.floor(Number(r.bays) || 1));
             r.bays = bays; r.palletsPerBay = ppb;
             r.maxColumns = bays * ppb;
@@ -8273,7 +8569,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         const hits = ray.intersectObject(floorPlane, false);
         return hits.length ? { x: hits[0].point.x, z: hits[0].point.z } : null;
     }
-    function editableMeshes(){ return fixtureMeshes.concat(forkliftMeshes, workerMeshes, containerMeshes, stackerMeshes, conveyorMeshes, workbenchMeshes, wrapperMeshes, areaMeshes, cubeMeshes, roomMeshes, officeMeshes, mezzanineMeshes, wallMeshes, lineMeshes, raisedFloorMeshes, buildingMeshes, srackMeshes, cargoMeshes, hoseReelMeshes, hydrantMeshes, ibcMeshes, drumMeshes, jumboMeshes, steelCrateMeshes, textMeshes); }
+    function editableMeshes(){ return fixtureMeshes.concat(forkliftMeshes, workerMeshes, containerMeshes, stackerMeshes, conveyorMeshes, workbenchMeshes, wrapperMeshes, areaMeshes, cubeMeshes, roomMeshes, officeMeshes, mezzanineMeshes, wallMeshes, metalWallMeshes, lineMeshes, raisedFloorMeshes, buildingMeshes, srackMeshes, cargoMeshes, hoseReelMeshes, hydrantMeshes, ibcMeshes, drumMeshes, jumboMeshes, steelCrateMeshes, textMeshes); }
     function pickFeature(clientX, clientY){
         const r = canvas.getBoundingClientRect();
         ndc.x = ((clientX - r.left) / r.width) * 2 - 1;
@@ -8347,6 +8643,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                 orientation:0, fxState:'close', featureColor:'',
                 maxColumns:1, maxLevels:1, palletsPerLevel:1, locPattern:'' };
             if (key === 'parking_lane') row.label = '1';
+            if (key === 'pvc_curtain'){ row.wDim = 3; row.hDim = 4; }   // default opening 3 m wide x 4 m tall (shown in the panel)
         }
         currentLayoutRows.push(row);
         // Build immediately (not via the 2-frame "Working…" deferral) so the new feature
@@ -8384,14 +8681,14 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     }
     function handleCorners(row){
         const x1 = Number(row.xPos)||0, z1 = Number(row.zStart)||0, x2 = Number(row.x2)||0, z2 = Number(row.z2)||0;
-        if (row.type === 'wall' || row.type === 'line')
+        if (row.type === 'wall' || row.type === 'metalwall' || row.type === 'line')
             return [ {xf:'xPos',zf:'zStart',ux:x1,uz:z1}, {xf:'x2',zf:'z2',ux:x2,uz:z2} ];
         return [ {xf:'xPos',zf:'zStart',ux:x1,uz:z1}, {xf:'x2',zf:'zStart',ux:x2,uz:z1},
                  {xf:'xPos',zf:'z2',ux:x1,uz:z2}, {xf:'x2',zf:'z2',ux:x2,uz:z2} ];
     }
     function outlinePts(row){
         const c = handleCorners(row).map(p => new THREE.Vector3(p.ux*SCALE, 1.0, p.uz*-SCALE));
-        return (row.type==='wall'||row.type==='line') ? [c[0],c[1]] : [c[0],c[1],c[3],c[2],c[0]];
+        return (row.type==='wall'||row.type==='metalwall'||row.type==='line') ? [c[0],c[1]] : [c[0],c[1],c[3],c[2],c[0]];
     }
     function buildHandles(row){
         clearHandles();
@@ -8540,7 +8837,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     const TAG_SPEC = {
         o:   { field:'orientation',  label:'Orientation (°)', type:'number', step:'5'   },
         st:  { field:'fxState',      label:'State',           type:'select', options:['close','open'] },
-        c:   { field:'featureColor', label:'Colour (hex)',    type:'text'   },
+        c:   { field:'featureColor', label:'Colour (hex)',    type:'color'  },
         w:   { field:'wDim',         label:'Width (m)',       type:'number', step:'0.1' },
         l:   { field:'lDim',         label:'Length (m)',      type:'number', step:'0.1' },
         h:   { field:'hDim',         label:'Height (m)',      type:'number', step:'0.1' },
@@ -8561,12 +8858,41 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         dock_leveller:['o','c','w','l','h'], extinguisher:['fh','o','c','w','l','h'],
         cctv:['fh','o','c','w','l','h'], sprinkler:['fh','c','w','l','h'],
         hibay:['fh','c','w','l','h'], smoke:['fh','c','w','l','h'],
+        pvc_curtain:['o','st','c','w','h'],
     };
     function fieldLabel(subtype, tag, spec){
         if (subtype === 'road_connector' && tag === 'l') return 'Radius (m)';
         return spec.label;
     }
     function rowVal(row, field){ const v = row[field]; return (v === null || v === undefined) ? '' : v; }
+    // Effective colour for display: the explicit featureColor if set, otherwise the actual
+    // default colour read off the largest visible mesh of the built feature — so the colour
+    // field shows a real hex instead of "auto".
+    function effectiveColorHex(row){
+        if (row.featureColor) return String(row.featureColor).replace(/^#/, '').toLowerCase();
+        try {
+            const grp = findGroup(row.rowName);
+            if (grp){
+                let bestCol = null, bestVol = -1;
+                grp.traverse(o => {
+                    if (!o.isMesh || o.isInstancedMesh) return;
+                    if (o.userData && o.userData.bounds) return;
+                    const m = o.material;
+                    if (!m || !m.color) return;
+                    if (m.transparent && m.opacity === 0) return;
+                    let vol = 1;
+                    if (o.geometry){
+                        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+                        const bb = o.geometry.boundingBox;
+                        if (bb){ const s = new THREE.Vector3(); bb.getSize(s); vol = Math.max(1e-4, s.x) * Math.max(1e-4, s.y) * Math.max(1e-4, s.z); }
+                    }
+                    if (vol > bestVol){ bestVol = vol; bestCol = m.color; }
+                });
+                if (bestCol) return bestCol.getHexString();
+            }
+        } catch(e){}
+        return '';
+    }
 
     // Apply an edit: mutate the row, rebuild, and re-select (refreshes highlight + panel).
     function commit(name, mutate){
@@ -8631,14 +8957,31 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     }
     function addColorField(grid, labelText, field, row){
         const r = makeRow(grid, labelText);
+        const norm = v => (v || '').trim().replace(/^#/, '');
+        // native CSS colour picker (swatch)
+        const sw = document.createElement('input');
+        sw.type = 'color'; sw.className = 'sp-color'; sw.title = 'Pick a colour';
+        // hex text, kept in sync with the swatch (and lets the user clear it back to "auto")
         const inp = document.createElement('input');
         inp.type = 'text'; inp.className = 'sp-in';
-        inp.value = rowVal(row, field); inp.placeholder = 'auto'; inp.dataset.field = field;
+        inp.placeholder = 'auto'; inp.dataset.field = field;
+        const cur = (field === 'featureColor') ? effectiveColorHex(row) : norm(rowVal(row, field));
+        inp.value = cur;
+        sw.value = '#' + (/^[0-9a-fA-F]{6}$/.test(cur) ? cur : '888888');
+        // dragging in the picker: live-update the hex text; commit once when it closes
+        sw.addEventListener('input',  () => { inp.value = sw.value.replace(/^#/, '').toLowerCase(); });
+        sw.addEventListener('change', () => {
+            const hex = sw.value.replace(/^#/, '').toLowerCase();
+            inp.value = hex;
+            commit(row.rowName, rr => { rr[field] = hex; });
+        });
+        // typing a hex: sync the swatch and commit (empty clears the colour)
         inp.addEventListener('change', () => {
-            const raw = inp.value.trim().replace(/^#/, '');
+            const raw = norm(inp.value).toLowerCase();
+            if (/^[0-9a-fA-F]{6}$/.test(raw)) sw.value = '#' + raw;
             commit(row.rowName, rr => { if (raw === '') delete rr[field]; else rr[field] = raw; });
         });
-        r.appendChild(inp); return r;
+        r.appendChild(sw); r.appendChild(inp); return r;
     }
     function addBoolField(grid, labelText, field, row){
         const r = makeRow(grid, labelText);
@@ -8785,7 +9128,10 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             addNumberField(grid, 'X (m)', 'xPos', row, '0.1');
             addNumberField(grid, 'Z (m)', 'zStart', row, '0.1');
         }
+        const colorTags = [];
         tags.forEach(tag => {
+            // defer every colour field to the bottom of the panel (rendered after this loop)
+            if ((typeof tag === 'object' && tag && tag.type === 'color') || tag === 'c'){ colorTags.push(tag); return; }
             if (typeof tag === 'object' && tag){
                 // explicit field spec (non-fixture dimensions / corners / params)
                 if (tag.type === 'select') addSelectField(grid, tag.label, tag.field, row, tag.options || []);
@@ -8794,7 +9140,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                 else if (tag.type === 'span') addSpanField(grid, tag.label, tag.field, tag.base, row);
                 else if (tag.type === 'segorient') addSegmentOrient(grid, row);
                 else if (tag.type === 'seglen') addSegmentLength(grid, row);
-                else if (tag.type === 'text') addTextField(grid, tag.label, tag.field, row, '');
+                else if (tag.type === 'text') addTextField(grid, tag.label, tag.field, row, tag.placeholder || '');
                 else addNumberField(grid, tag.label, tag.field, row, tag.step || '0.1');
                 return;
             }
@@ -8810,8 +9156,21 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                 if (tag === 'o') addRotateButtons(r);
             } else if (spec.type === 'select'){
                 addSelectField(grid, lab, spec.field, row, spec.options);
+            } else if (spec.type === 'color'){
+                addColorField(grid, lab, spec.field, row);
             } else {
                 addTextField(grid, lab, spec.field, row, tag === 'c' ? 'auto' : '');
+            }
+        });
+
+        // colour fields, always last
+        colorTags.forEach(tag => {
+            if (typeof tag === 'object'){
+                addColorField(grid, tag.label, tag.field, row);
+            } else {
+                const spec = TAG_SPEC[tag]; if (!spec) return;
+                const lab = isFix ? fieldLabel(row.subtype, tag, spec) : spec.label;
+                addColorField(grid, lab, spec.field, row);
             }
         });
 
@@ -8967,7 +9326,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     const wNum0 = v => (v == null || v === '' || isNaN(v)) ? 0 : Number(v);
     const wInt1 = v => Math.max(1, Math.floor(Number(v) || 1));
     const wRnd  = v => (v == null || v === '' || isNaN(v)) ? '' : Math.round(Number(v) * 1000) / 1000;
-    const wPPB  = v => (Number(v) === 2 ? 2 : 1);
+    const wPPB  = v => Math.max(1, Math.floor(Number(v) || 1));
 
     // type → { sheet, cols:[ [colIndex, row=>value], … ] }   (column 0 = Name, written separately)
     // Title (row 1) + column headers (row 2) for every sheet the save manages, so a missing
@@ -8976,6 +9335,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         "Areas": { t:"AREAS", h:["Name", "X1 (m)", "Z1 (m)", "Width (m)", "Length (m)", "Colour (hex)"] },
         "Lines": { t:"LINES", h:["Name", "X1 (m)", "Z1 (m)", "Width (m)", "Length (m)", "Colour (hex)"] },
         "Wall": { t:"WALL", h:["Name", "X1 (m)", "Z1 (m)", "Width (m)", "Length (m)", "Wall Height (m)", "Colour (hex)", "Style (solid/mesh)"] },
+        "Metal Wall": { t:"METAL SHEET WALL", h:["Name", "X1 (m)", "Z1 (m)", "Width (m)", "Length (m)", "Wall Height (m)", "Colour (hex)", "Frame side (front/back)"] },
         "Room": { t:"ROOM", h:["Name", "X1 (m)", "Z1 (m)", "Width (m)", "Length (m)", "Wall Height (m)", "Style", "Colour (hex)"] },
         "Office": { t:"OFFICE", h:["Name", "X1 (m)", "Z1 (m)", "Width (m)", "Length (m)", "Floors", "Floor Height (m)", "Style", "Colour (hex)"] },
         "Building": { t:"BUILDING", h:["Name", "X1 (m)", "Z1 (m)", "Width (m)", "Length (m)", "Wall Height (m)", "Style", "Colour (hex)"] },
@@ -8988,6 +9348,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         "Stacker": { t:"STACKER", h:["Name", "X (m)", "Z (m)", "Orientation", "Mast Height (m)", "Colour (hex)"] },
         "Fire Hose Reel Cabinet": { t:"FIRE HOSE REEL CABINET", h:["Name", "X (m)", "Z (m)", "Orientation", "Mount Height (m)", "Colour (hex)"] },
         "Hydrant": { t:"HYDRANT", h:["Name", "X (m)", "Z (m)", "Orientation", "Height (m)", "Colour (hex)"] },
+        "PVC Strip Curtain": { t:"PVC STRIP CURTAIN", h:["Name", "X (m)", "Z (m)", "Orientation", "State", "Colour (hex)", "Width (m)", "Height (m)"] },
         "IBC Tote": { t:"IBC TOTE", h:["Name", "X (m)", "Z (m)", "Columns", "Rows", "Orientation", "Height (m)", "Stack Levels", "Location Pattern", "Colour (hex)"] },
         "Drum Pallet": { t:"DRUM PALLET", h:["Name", "X (m)", "Z (m)", "Columns", "Rows", "Orientation", "Height (m)", "Stack Levels", "Location Pattern", "Colour (hex)"] },
         "Jumbo Bag": { t:"JUMBO BAG", h:["Name", "X (m)", "Z (m)", "Columns", "Rows", "Orientation", "Height (m)", "Stack Levels", "Location Pattern", "Colour (hex)"] },
@@ -8995,7 +9356,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         "Conveyor": { t:"CONVEYOR", h:["Name", "X (m)", "Z (m)", "Length (m)", "Width (m)", "Belt Height (m)", "Orientation", "Colour (hex)"] },
         "Workbench": { t:"WORKBENCH", h:["Name", "X (m)", "Z (m)", "Width (m)", "Length (m)", "Bench Height (m)", "Orientation", "Colour (hex)"] },
         "Wrapping Machine": { t:"WRAPPING MACHINE", h:["Name", "X (m)", "Z (m)", "Turntable Diameter (m)", "Mast Height (m)", "Orientation", "Colour (hex)"] },
-        "Selective Rack": { t:"SELECTIVE RACK", h:["Name", "X (m)", "Z (m)", "Bays", "Pallets Per Bay", "Levels", "Post Height (m)", "Orientation", "Colour (hex)", "Location Pattern"] },
+        "Selective Rack": { t:"SELECTIVE RACK", h:["Name", "X (m)", "Z (m)", "Bays", "Pallets Per Bay", "Levels", "Post Height (m)", "Orientation", "Colour (hex)", "Location Pattern", "Width (m)", "Depth (m)", "Passage Ways"] },
         "Cargo Pallet": { t:"CARGO PALLET", h:["Name", "X (m)", "Z (m)", "Count", "Orientation", "Cargo Height (m)", "Colour (hex)", "Location Pattern", "Rows", "Stack Levels"] },
         "Text": { t:"TEXT", h:["Name", "X (m)", "Z (m)", "Text", "Orientation", "Colour (hex)", "Size (m)"] },
         "Shutter": { t:"SHUTTER", h:["Name", "X (m)", "Z (m)", "Orientation", "State", "Colour (hex)", "W (m)", "H (m)"] },
@@ -9051,10 +9412,11 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         office:     { sheet:'Office',           cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wRnd(r.x2-r.xPos)],[4,r=>wRnd(r.z2-r.zStart)],[5,r=>wInt1(r.floors)],[6,r=>wRnd(r.height)],[7,r=>r.subtype||'transparent'],[8,r=>r.roomColor||'']] },
         mezzanine:  { sheet:'Mezzanine',        cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wInt1(r.levels)],[4,r=>wRnd(r.x2-r.xPos)],[5,r=>wRnd(r.z2-r.zStart)],[6,r=>wRnd(r.height)],[7,r=>wNum0(r.orientation)],[8,r=>r.shelves?'yes':'no'],[9,r=>r.featureColor||'']] },
         wall:       { sheet:'Wall',             cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wRnd(r.x2-r.xPos)],[4,r=>wRnd(r.z2-r.zStart)],[5,r=>wRnd(r.height)],[6,r=>r.subtype||'888888'],[7,r=>r.wallStyle||'mesh']] },
+        metalwall:  { sheet:'Metal Wall',       cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wRnd(r.x2-r.xPos)],[4,r=>wRnd(r.z2-r.zStart)],[5,r=>wRnd(r.height)],[6,r=>r.subtype||'d8dde2'],[7,r=>r.wallStyle||'front']] },
         line:       { sheet:'Lines',            cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wRnd(r.x2-r.xPos)],[4,r=>wRnd(r.z2-r.zStart)],[5,r=>r.subtype||'ffffff'],[6,r=>wRnd(r.thickness!=null?r.thickness:0.05)]] },
         raisedfloor:{ sheet:'Raised Floor',     cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wRnd(r.x2-r.xPos)],[4,r=>wRnd(r.z2-r.zStart)],[5,r=>wRnd(r.height)],[6,r=>r.featureColor||'9aa3ab']] },
         building:   { sheet:'Building',         cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wRnd(r.x2-r.xPos)],[4,r=>wRnd(r.z2-r.zStart)],[5,r=>wRnd(r.height)],[6,r=>r.subtype||'opaque'],[7,r=>r.featureColor||'']] },
-        srack:      { sheet:'Selective Rack',   cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wInt1(r.bays)],[4,r=>wPPB(r.palletsPerBay)],[5,r=>wInt1(r.levels)],[6,r=>wRnd(r.postHeight)],[7,r=>wNum0(r.orientation)],[8,r=>r.subtype||'e8842b'],[9,r=>r.locPattern||'{row}-{level}-{bay}']] },
+        srack:      { sheet:'Selective Rack',   cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>wInt1(r.bays)],[4,r=>wPPB(r.palletsPerBay)],[5,r=>wInt1(r.levels)],[6,r=>wRnd(r.postHeight)],[7,r=>wNum0(r.orientation)],[8,r=>r.subtype||'e8842b'],[9,r=>r.locPattern||'{row}-{level}-{bay}'],[10,r=>wRnd(r.rackWidth)],[11,r=>wRnd(r.rackDepth)],[12,r=>r.passages||'']] },
         text:       { sheet:'Text',             cols:[[1,r=>wRnd(r.xPos)],[2,r=>wRnd(r.zStart)],[3,r=>(r.locPattern!=null?r.locPattern:'')],[4,r=>wNum0(r.orientation)],[5,r=>r.subtype||'ffffff'],[6,r=>wNum0(r.textSize)]] },
     };
     // Fixtures: one sheet per subtype; columns after Name,X,Z follow the tag order.
@@ -9069,6 +9431,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         ['Dock Leveller','dock_leveller',['o','c','w','l','h']], ['Extinguisher','extinguisher',['fh','o','c','w','l','h']],
         ['CCTV','cctv',['fh','o','c','w','l','h']], ['Sprinkler','sprinkler',['fh','c','w','l','h']],
         ['Hi-Bay Light','hibay',['fh','c','w','l','h']], ['Smoke Detector','smoke',['fh','c','w','l','h']],
+        ['PVC Strip Curtain','pvc_curtain',['o','st','c','w','h']],
     ];
     const FX_TAG = {
         o:r=>wNum0(r.orientation), st:r=>r.fxState||'close', c:r=>r.featureColor||'',
@@ -9113,7 +9476,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             });
             // These sheets now store the far corner as Width/Length (cols D,E) — keep their
             // headers in step with the values so the file stays self-consistent.
-            ['Areas','Lines','Wall','Room','Office','Building','Raised Floor'].forEach(sh => {
+            ['Areas','Lines','Wall','Metal Wall','Room','Office','Building','Raised Floor'].forEach(sh => {
                 const ws = layoutWorkbook.Sheets[sh];
                 if (!ws) return;
                 setCellW(ws, 1, 3, 'Width (m)');
@@ -9631,15 +9994,6 @@ console.log('DEMO Warehouse Rack Simulator initialized');
 </div>
 
 <!-- Usage guide bottom-left -->
-<div id="usage-guide">
-    <div class="ug-item"><span class="ug-key">drag</span> rotate</div>
-    <div class="ug-sep">·</div>
-    <div class="ug-item"><span class="ug-key">scroll</span> zoom</div>
-    <div class="ug-sep">·</div>
-    <div class="ug-item"><span class="ug-key">right-drag</span> pan</div>
-    <div class="ug-sep">·</div>
-    <div class="ug-item"><span class="ug-key">click label</span> isolate row</div>
-</div>
 
 <!-- Demo notice banner -->
 <div id="demo-notice">
@@ -9666,11 +10020,6 @@ console.log('DEMO Warehouse Rack Simulator initialized');
     <div id="uploadProgressTrack"><div id="uploadProgressBar"></div></div>
 </div>
 
-<!-- Developer credit -->
-<div id="dev-credit">
-    <span class="dev-line">Developed by Komsan Kongsuwan</span>
-    <span class="dev-line"><a href="mailto:komsan.kongsuwan@gmail.com" style="color:inherit;text-decoration:none;">komsan.kongsuwan@gmail.com</a> &middot; <a href="tel:+66817239680" style="color:inherit;text-decoration:none;">+66-81-723-9680</a></span>
-</div>
 
 </body>
 </html>
