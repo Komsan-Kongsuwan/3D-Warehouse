@@ -10491,7 +10491,46 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !startupDone && !startupSkip){ e.preventDefault(); skipStartup(); }
 }, true);
 
+// Ask the user up front whether to load the demo data or start from a blank plan.
+function askStartupChoice(){
+    return new Promise(resolve => {
+        const ov = document.createElement('div');
+        ov.id = 'startupChoice';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);';
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--bg-card,#1a1f28);border:1px solid var(--border-lit,#2c3a4d);border-radius:12px;padding:24px 26px;max-width:400px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.55);color:var(--text-hi,#e8eef6);font-family:inherit;';
+        const btnBase = 'padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border-lit,#2c3a4d);';
+        card.innerHTML =
+            '<div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--cyan,#39c3ff)">Start a session</div>' +
+            '<div style="font-size:13px;line-height:1.55;color:var(--text-mid,#aab6c6);margin-bottom:22px">Load the demo layout &amp; inventory, or start with a blank plan you can design from scratch?</div>' +
+            '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+              '<button id="suBlank" style="' + btnBase + 'background:transparent;color:var(--text-hi,#e8eef6)">Start blank</button>' +
+              '<button id="suDemo" style="' + btnBase + 'background:var(--cyan,#39c3ff);border-color:var(--cyan,#39c3ff);color:#06222e">Load demo</button>' +
+            '</div>';
+        ov.appendChild(card);
+        document.body.appendChild(ov);
+        const done = (choice) => { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(choice); };
+        const onKey = (e) => {
+            if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); done('blank'); }
+            else if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); done('demo'); }
+        };
+        document.addEventListener('keydown', onKey, true);
+        card.querySelector('#suDemo').onclick  = () => done('demo');
+        card.querySelector('#suBlank').onclick = () => done('blank');
+        card.querySelector('#suDemo').focus();
+    });
+}
+
 async function initApp() {
+    // Up-front choice: load the demo, or go straight to a blank plan.
+    const choice = await askStartupChoice();
+    if (choice === 'blank'){
+        startupSkip = true; startupDone = true;
+        if (typeof window.newFloorPlan === 'function') window.newFloorPlan(10, true);   // blank plan, in edit mode
+        const st = document.getElementById('status');
+        if (st) st.innerHTML = 'Blank plan ready \u2014 drag features from the palette, or upload a layout / inventory.';
+        return;
+    }
     document.getElementById('status').innerHTML = '⏳ Loading layout… <span style="opacity:.7">(press Esc to skip and start a blank plan)</span>';
     showUploadProgress('Loading…');    // outer hold: keep the bar visible across both load steps
     await uploadYield();
