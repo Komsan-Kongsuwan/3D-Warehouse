@@ -10467,39 +10467,68 @@ animate();
 const AUTOLOAD_LAYOUT = 'Demo_Layout.xlsx';
 const AUTOLOAD_CSV    = 'Demo_Inventory.csv';
 
+// ── Esc skips the demo auto-load and drops straight into a blank plan ──
+let startupSkip = false, startupDone = false;
+const startupAbort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+function forceHideUploadProgress(){
+    uploadBusy = 0;
+    const w = document.getElementById('uploadProgress'); if (w) w.style.display = 'none';
+}
+function skipStartup(){
+    if (startupDone || startupSkip) return;
+    startupSkip = true;
+    if (startupAbort){ try { startupAbort.abort(); } catch(_e){} }   // cancel any in-flight demo fetch
+    if (typeof window.newFloorPlan === 'function') window.newFloorPlan(10, true);   // blank plan, in edit mode
+    forceHideUploadProgress();
+    const st = document.getElementById('status');
+    if (st) st.innerHTML = 'Skipped demo load \u2014 blank plan ready. Drag features in, or upload a layout / inventory.';
+}
+// Capture-phase so it fires before other Escape handlers; only active during startup.
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !startupDone && !startupSkip){ e.preventDefault(); skipStartup(); }
+}, true);
+
 async function initApp() {
-    document.getElementById('status').innerHTML = '⏳ Loading layout…';
+    document.getElementById('status').innerHTML = '⏳ Loading layout… <span style="opacity:.7">(press Esc to skip and start a blank plan)</span>';
     showUploadProgress('Loading…');    // outer hold: keep the bar visible across both load steps
     await uploadYield();
     let layoutLoaded = false;
 
     // 1) Layout workbook (.xlsx)
     try {
-        const r = await fetch(AUTOLOAD_LAYOUT, { cache: 'no-store' });
+        if (startupSkip) throw new Error('skipped');
+        const r = await fetch(AUTOLOAD_LAYOUT, { cache: 'no-store', signal: startupAbort ? startupAbort.signal : undefined });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const buf = new Uint8Array(await r.arrayBuffer());
+        if (startupSkip) throw new Error('skipped');
         showUploadProgress('Loading layout…');
         await uploadYield();
+        if (startupSkip) throw new Error('skipped');
         parseLayoutBuffer(buf, AUTOLOAD_LAYOUT);   // builds the layout + applies the Camera sheet
         layoutLoaded = true;
     } catch (err) {
         console.warn('Auto-load layout failed (' + AUTOLOAD_LAYOUT + '):', err.message);
     }
+    if (startupSkip){ startupDone = true; return; }   // Esc pressed — blank plan already set up
 
     // 2) Inventory data (.csv)
     try {
-        const r = await fetch(AUTOLOAD_CSV, { cache: 'no-store' });
+        if (startupSkip) throw new Error('skipped');
+        const r = await fetch(AUTOLOAD_CSV, { cache: 'no-store', signal: startupAbort ? startupAbort.signal : undefined });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const text = await r.text();
+        if (startupSkip) throw new Error('skipped');
         const fileNameEl = document.getElementById('fileName');
         if (fileNameEl) fileNameEl.textContent = AUTOLOAD_CSV;
         document.getElementById('csvCard')?.classList.add('loaded');
         showUploadProgress('Loading inventory…');
         await uploadYield();
+        if (startupSkip) throw new Error('skipped');
         parseCSV(text.replace(/^\ufeff/, ''));     // strip BOM; Papa.parse accepts the CSV text directly
     } catch (err) {
         console.warn('Auto-load CSV failed (' + AUTOLOAD_CSV + '):', err.message);
     }
+    if (startupSkip){ startupDone = true; return; }   // Esc pressed during inventory load
 
     // 3) Fallback — files not reachable (e.g. opened as a local file): start a blank plan to design on
     if (!layoutLoaded) {
@@ -10514,6 +10543,7 @@ async function initApp() {
     await uploadYield();     // let the freshly-built (inventory) scene paint before hiding —
     await uploadYield();     // layout's render is already covered by the following CSV fetch
     hideUploadProgress();    // release the outer hold -> bar hides once everything is on screen
+    startupDone = true;      // Esc now resumes its normal in-editor behaviour (deselect)
 }
 
 initApp();
