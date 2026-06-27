@@ -7306,7 +7306,10 @@ function showUploadProgress(label){
     const w = document.getElementById('uploadProgress');
     if (!w) return;
     const l = document.getElementById('uploadProgressLabel');
-    if (l && label) l.textContent = label;
+    // While the demo is still auto-loading, every label carries the "Esc to skip" hint so it
+    // stays visible the whole time (the status line gets overwritten too fast to read).
+    const hint = (typeof startupDone !== 'undefined' && !startupDone && !startupSkip) ? '  ·  press Esc to skip' : '';
+    if (l && label) l.textContent = label + hint;
     if (uploadBusy === 1) uploadShownAt = performance.now();   // first show -> start the min-display clock
     w.style.display = 'block';
 }
