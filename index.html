@@ -787,6 +787,23 @@ body.editing #canvas-container { cursor: crosshair; }
     line-height: 1.6;
 }
 
+/* Occupancy / utilization dashboard card (top of the legend) */
+.occ-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+.occ-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.occ-title { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-mid); }
+.occ-pct { font-family: 'DM Mono', monospace; font-size: 17px; font-weight: 700; line-height: 1; }
+.occ-bar { height: 8px; border-radius: 4px; background: var(--bg-deep); overflow: hidden; margin-bottom: 6px; }
+.occ-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+.occ-stats { display: flex; gap: 10px; font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-lo); }
+.occ-stats b { color: var(--text-hi); font-weight: 600; }
+.occ-dot { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 3px; vertical-align: middle; }
+
 .empty-slot-note {
     display: flex;
     align-items: center;
@@ -1931,6 +1948,8 @@ function rebuildValidLocations(){
                 validLocations.add(makeLocKey(geo.locPattern, rowName, lv, col, cols, 1, 1));
             }
     });
+    // keep the occupancy card current when the layout changes with inventory already loaded
+    if (locationMap.size > 0 && typeof updateLegend === 'function') updateLegend();
 }
 
 // ---------------- THREE.JS SETUP ----------------
@@ -2028,6 +2047,11 @@ function buildOrthoCamera() {
 
 function toggleView() {
     isTopView = !isTopView;
+    renderer.shadowMap.enabled = !isTopView;   // shadows flatten onto the floor and read like zones in top view, so turn them off there
+    // Toggling shadowMap.enabled alone leaves stale shadows (materials keep sampling the old shadow map);
+    // flag every material for recompile so shadow sampling is actually dropped / re-added.
+    scene.traverse(o => { if (o.isMesh && o.material){ (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m) m.needsUpdate = true; }); } });
+    raisedFloorMeshes.forEach(m => { m.visible = !isTopView; });   // hide raised floors in top view so the grid is clear
     const btn   = document.getElementById('viewToggleBtn');
     const icon  = document.getElementById('viewToggleIcon');
     const label = document.getElementById('viewToggleLabel');
@@ -5078,6 +5102,21 @@ function buildStackers() {
 // = ground (0). Rendered as a solid floor slab from 0 up to the height.
 let raisedRegions = [];          // {minX,maxX,minZ,maxZ,h} in WORLD units
 let raisedFloorMeshes = [];
+let raisedFloorTintNames = [];   // rowNames of currently-selected raised floors → shown blue
+const RF_SELECT_COLOR = 0x2a7fff;
+function applyRaisedFloorTints() {   // recolor selected raised-floor slabs blue, restore the rest to their own colour
+    raisedFloorMeshes.forEach(m => {
+        if (!m.material) return;
+        const sel = raisedFloorTintNames.indexOf(String(m.userData.rowName)) >= 0;
+        if (sel) {
+            if (m.userData.baseColor == null) m.userData.baseColor = m.material.color.getHex();
+            m.material.color.setHex(RF_SELECT_COLOR);
+        } else if (m.userData.baseColor != null) {
+            m.material.color.setHex(m.userData.baseColor);
+            m.userData.baseColor = null;
+        }
+    });
+}
 
 function regionHeightAt(wx, wz) { // world coords in, world height out (0 if none)
     let best = 0;
@@ -5103,10 +5142,12 @@ function buildRaisedFloors() {
         const m = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), mat);
         m.position.set((minX + maxX) / 2, H / 2, (minZ + maxZ) / 2);   // slab from floor up to H
         m.receiveShadow = true; m.castShadow = true;
+        m.visible = !isTopView;                                       // hidden in top view so the grid reads clearly (color/3D view unchanged)
         m.userData.rowName = rowName; m.userData.subtype = geo.type; m.userData.editable = true;
         scene.add(m);
         raisedFloorMeshes.push(m);
     });
+    applyRaisedFloorTints();   // keep the blue tint after a rebuild if a raised floor is still selected
 }
 
 // ── CUBE FEATURE ─────────────────────────────────────────────────────────────
@@ -6500,6 +6541,18 @@ function buildItemCount() {
     return itemCount;
 }
 
+// Warehouse occupancy: how many storable locations (from the layout) hold inventory.
+function computeOccupancy() {
+    const total = validLocations.size;
+    if (total === 0) return { total: 0, occupied: locationMap.size, empty: 0, pct: null };
+    let occupied = 0;
+    validLocations.forEach(loc => {
+        const items = locationMap.get(loc);
+        if (items && items.length) occupied++;
+    });
+    return { total, occupied, empty: total - occupied, pct: (occupied / total) * 100 };
+}
+
 function updateLegend() {
     const legendDiv      = document.getElementById('legend');
     const controlsDiv    = document.getElementById('legend-controls');
@@ -6507,8 +6560,29 @@ function updateLegend() {
     const sortedCustomers = Object.entries(customerCount).sort((a, b) => b[1] - a[1]);
     const hasData = sortedCustomers.length > 0;
 
-    // ── Fixed controls (toggle + count + search) ──────────────
-    controlsDiv.innerHTML = `
+    // ── Occupancy / utilization card ──────────────────────────
+    const occ = computeOccupancy();
+    let occHTML = '';
+    if (hasData && occ.total > 0) {
+        const pct = Math.round(occ.pct);
+        const col = pct >= 90 ? 'var(--red)' : pct >= 75 ? 'var(--amber)' : 'var(--cyan)';
+        occHTML = `
+        <div class="occ-card">
+            <div class="occ-top">
+                <span class="occ-title">📊 OCCUPANCY</span>
+                <span class="occ-pct" style="color:${col}">${pct}%</span>
+            </div>
+            <div class="occ-bar"><div class="occ-fill" style="width:${pct}%;background:${col}"></div></div>
+            <div class="occ-stats">
+                <span><span class="occ-dot" style="background:${col}"></span>Occupied <b>${occ.occupied.toLocaleString()}</b></span>
+                <span><span class="occ-dot" style="background:var(--border-lit,#3a4a5a)"></span>Empty <b>${occ.empty.toLocaleString()}</b></span>
+                <span>Total <b>${occ.total.toLocaleString()}</b></span>
+            </div>
+        </div>`;
+    }
+
+    // ── Fixed controls (occupancy + toggle + count + search) ──
+    controlsDiv.innerHTML = occHTML + `
         <div class="legend-header">
             <div class="legend-toggle-wrap">
                 <button class="legend-toggle-btn ${legendMode==='customer'?'active':''}" id="toggleCustomer">Customer</button>
@@ -7883,7 +7957,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         ['Stacker','stacker'], ['Conveyor','conveyor'], ['Workbench','workbench'], ['Wrapping Machine','wrapper'],
         ['Area','area'], ['Cube','cube'], ['Room','room'], ['Office','office'], ['Mezzanine','mezzanine'],
         ['Wall (Mesh)','wall:mesh'], ['Wall (Solid)','wall:solid'], ['Metal Sheet Wall','metalwall'], ['Line','line'],
-        ['Selective Rack','srack'], ['Rack Fill (Warehouse)','rackfill_warehouse'], ['Cargo Pallet','cargo'], ['Building','building'], ['Raised Floor','raisedfloor'], ['Text','text'],
+        ['Selective Rack','srack'], ['Selective Rack Double','srack_double'], ['Rack Fill (Warehouse)','rackfill_warehouse'], ['Cargo Pallet','cargo'], ['Building','building'], ['Raised Floor','raisedfloor'], ['Text','text'],
         ['Warehouse 120×70×12','wh_120x70x12'], ['Warehouse 200×100×15','wh_200x100x15'],
         ['Warehouse (RF) 120×70×12','wh_rf_120x70x12'], ['Warehouse (RF) 200×100×15','wh_rf_200x100x15'],
         ['Shutter + Dock Leveller','combo_shutter_dock'], ['Dock Shelter + Dock Leveller','combo_shelter_dock'], ['PVC Curtain + Dock Leveller','combo_pvc_dock'],
@@ -7894,7 +7968,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
     const CATEGORIES = [
         ['Vehicles',          ['forklift:cb','forklift:rt','forklift:pp','container:container','container:20','container:2x20','container:jack','container:4w','container:6w','container:12m','container:car','stacker']],
         ['Equipment & People',['worker','conveyor','workbench','wrapper']],
-        ['Storage & Racking', ['srack','rackfill_warehouse','cargo','carton_pallet','ibc','drumpallet','jumbobag','steelcrate']],
+        ['Storage & Racking', ['srack','srack_double','rackfill_warehouse','cargo','carton_pallet','ibc','drumpallet','jumbobag','steelcrate']],
         ['Zones & Areas',     ['area','cube','room','office','mezzanine','raisedfloor']],
         ['Structure',         ['wall:mesh','wall:solid','metalwall','line','building','text']],
         ['Building Templates',['wh_120x70x12','wh_200x100x15','wh_rf_120x70x12','wh_rf_200x100x15']],
@@ -8401,8 +8475,23 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                     c.position.set((xx+0.5)*cell - span/2, 1.2 + ch/2 + yy*ch, (zz+0.5)*cell - span/2);
                     grp.add(c);
                 }
+            } else if (key === 'srack_double'){
+                // two rack frames back-to-back with a flue gap
+                const postMat = new THREE.MeshStandardMaterial({ color:0x2f6fd0, roughness:0.5, metalness:0.3 });
+                const beamMat = new THREE.MeshStandardMaterial({ color:0xe8842b, roughness:0.5, metalness:0.3 });
+                [-1.6, 1.6].forEach(zc => {                                   // two racks, centred at z = -1.6 and +1.6 (0.8 m flue)
+                    [[-3, zc-0.7],[3, zc-0.7],[-3, zc+0.7],[3, zc+0.7]].forEach(([x,z])=>{ const p=new THREE.Mesh(new THREE.BoxGeometry(0.4,8,0.4),postMat); p.position.set(x,4,z); grp.add(p); });
+                    [3,6].forEach(y=>{ [zc-0.7, zc+0.7].forEach(z=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(6.4,0.3,0.3),beamMat); b.position.set(0,y,z); grp.add(b); }); });
+                });
             } else if (key === 'rackfill_warehouse'){
-                const nf = NF_TYPES.srack; if (nf && nf.thumb) nf.thumb(grp);
+                // a row of several short racks inside a floor pad — conveys "fill the warehouse"
+                const postMat = new THREE.MeshStandardMaterial({ color:0x2f6fd0, roughness:0.5, metalness:0.3 });
+                const beamMat = new THREE.MeshStandardMaterial({ color:0xe8842b, roughness:0.5, metalness:0.3 });
+                grp.add(new THREE.Mesh(new THREE.BoxGeometry(13,0.2,9), new THREE.MeshStandardMaterial({ color:0x9aa3ab, roughness:0.9, transparent:true, opacity:0.5, depthWrite:false })));
+                [-4.2, 0, 4.2].forEach(xc => {                                // three short racks side by side
+                    [[xc-1.4,-0.7],[xc+1.4,-0.7],[xc-1.4,0.7],[xc+1.4,0.7]].forEach(([x,z])=>{ const p=new THREE.Mesh(new THREE.BoxGeometry(0.3,6,0.3),postMat); p.position.set(x,3,z); grp.add(p); });
+                    [2,4.2].forEach(y=>{ [-0.7,0.7].forEach(z=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(3.0,0.25,0.25),beamMat); b.position.set(xc,y,z); grp.add(b); }); });
+                });
             } else if (COMBO_FEATURES[key]){
                 buildFixtureModel(grp, COMBO_FEATURES[key].parts[0], 3*SCALE, null, 'close', defaultGeo(COMBO_FEATURES[key].parts[0]));
             } else if (NF_TEMPLATES[key]){
@@ -8546,6 +8635,8 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                 e.dataset.name = r.rowName;
                 e.dataset.hay = (String(r.rowName) + ' ' + rowTypeLabel(r)).toLowerCase();
                 const nm = document.createElement('span'); nm.className = 'fl-name'; nm.textContent = r.rowName;
+                nm.title = 'Double-click to rename';
+                nm.addEventListener('dblclick', ev => { ev.stopPropagation(); beginRename(nm, String(r.rowName)); });
                 const tp = document.createElement('span'); tp.className = 'fl-type'; tp.textContent = rowTypeLabel(r);
                 e.appendChild(nm); e.appendChild(tp);
                 e.addEventListener('click', () => { select(String(r.rowName)); });   // select only — don't move the camera (press F to frame)
@@ -8582,6 +8673,55 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             emptyEl.textContent = noneAtAll ? 'No features placed yet.' : 'No features match.';
             emptyEl.style.display = (noneAtAll || (q && !anyVisible)) ? 'block' : 'none';
         }
+    }
+    // Rename a placed feature: double-click its name in the list to edit inline.
+    function beginRename(nameSpan, oldName){
+        if (!nameSpan || nameSpan.tagName === 'INPUT') return;
+        const input = document.createElement('input');
+        input.type = 'text'; input.value = oldName; input.spellcheck = false;
+        input.style.cssText = 'width:100%;font:inherit;background:var(--bg-deep);color:var(--text-hi);border:1px solid var(--cyan);border-radius:3px;padding:1px 4px;box-sizing:border-box;';
+        nameSpan.replaceWith(input);
+        input.focus(); input.select();
+        let done = false;
+        const finish = commit => {
+            if (done) return; done = true;
+            const nv = input.value.trim();
+            if (commit && nv && nv !== oldName) renameFeature(oldName, nv);
+            else refreshFeatureList();   // cancel / no-op → rebuild the row back
+        };
+        input.addEventListener('keydown', ev => {
+            ev.stopPropagation();
+            if (ev.key === 'Enter') finish(true);
+            else if (ev.key === 'Escape') finish(false);
+        });
+        input.addEventListener('blur', () => finish(true));
+        input.addEventListener('click', ev => ev.stopPropagation());   // don't trigger row-select while editing
+    }
+    function renameFeature(oldName, newName){
+        newName = String(newName).trim();
+        const row = currentLayoutRows.find(r => String(r.rowName) === String(oldName));
+        if (!newName || !row || String(oldName) === newName){ refreshFeatureList(); return; }
+        if (currentLayoutRows.some(r => r !== row && String(r.rowName) === newName)){   // names must stay unique
+            status('Name "' + newName + '" is already used — pick another.');
+            refreshFeatureList();
+            return;
+        }
+        pushUndo();
+        const wasPrimary = String(selectedName) === String(oldName);
+        const selIdx = selectedNames.indexOf(String(oldName));
+        const tintIdx = raisedFloorTintNames.indexOf(String(oldName));
+        row.rowName = newName;                                   // rowGeometry is re-keyed from currentLayoutRows on rebuild
+        if (selIdx >= 0) selectedNames[selIdx] = newName;
+        if (wasPrimary) selectedName = newName;
+        if (tintIdx >= 0) raisedFloorTintNames[tintIdx] = newName;
+        withBusy(() => {
+            lightRebuild(row.type);
+            refreshFeatureList();
+            if (isGroup()) selectGroup(selectedNames.slice());
+            else if (wasPrimary) select(newName);
+            else forceRender();
+        });
+        status('Renamed to "' + newName + '"');
     }
     function setFeatureActive(name){
         document.querySelectorAll('#featListGroups .fl-entry').forEach(e => {
@@ -8729,7 +8869,13 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         if (hit && (SNAP_TO_WALL[placing] || COMBO_FEATURES[placing])){
             const w = nearestBuildingWall(hit.x / SCALE, hit.z / -SCALE);
             if (w && w.dist <= SNAP_MAX_M && w.row) showSnapHint(w.row); else clearSnapHint();
-        } else clearSnapHint();
+            clearRackSnapHint();
+        } else if (hit && (placing === 'srack' || placing === 'srack_double')){
+            clearSnapHint();
+            const depthM = (placing === 'srack_double') ? (2 * SR_DEPTH_M + RACK_GAP_M) : SR_DEPTH_M;
+            const sn = snapRackAisle(round3(hit.x / SCALE), round3(hit.z / -SCALE), 90, depthM, srackRunLenM(NF_TYPES.srack.defaults), []);
+            showRackSnapHint(sn.target);
+        } else { clearSnapHint(); clearRackSnapHint(); }
     }
     function onPlaceUp(e){
         window.removeEventListener('pointermove', onPlaceMove);
@@ -8737,6 +8883,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         ghost.style.display = 'none';
         hidePosTip();
         clearSnapHint();
+        clearRackSnapHint();
         const sub = placing; placing = null;
         if (!sub) return;
         const r = canvas.getBoundingClientRect();
@@ -8825,12 +8972,37 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         const L = Math.hypot(Bx - Ax, Bz - Az); if (L < 0.001) return;
         const H = (Number(row.height) || 4) * SCALE;
         const geo = new THREE.BoxGeometry(L + 1.0, H, 1.8);
-        const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.32, depthWrite: false });
+        const mat = new THREE.MeshBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.55, depthWrite: false });
         snapHint = new THREE.Mesh(geo, mat);
         snapHint.position.set((Ax + Bx) / 2, H / 2, (Az + Bz) / 2);
         snapHint.rotation.y = -Math.atan2(Bz - Az, Bx - Ax);
         snapHint.renderOrder = 999;
         scene.add(snapHint);
+        forceRender();
+    }
+    let rackHint = null, rackHintRow = null;
+    function clearRackSnapHint(){
+        if (rackHint){ scene.remove(rackHint); rackHint.geometry.dispose(); rackHint.material.dispose(); rackHint = null; }
+        rackHintRow = null;
+    }
+    function showRackSnapHint(row){
+        if (!row){ clearRackSnapHint(); return; }
+        if (rackHintRow === row && rackHint) return;
+        clearRackSnapHint();
+        const ori = Number(row.orientation) || 0;
+        const vertical = !(ori === 0 || ori === 180);
+        const runW = srackRunLenM(row) * SCALE, depthW = SR_DEPTH_M * SCALE;
+        const H = Math.max(2, (Number(row.postHeight) || 8) * SCALE);
+        const ax = (Number(row.xPos) || 0) * SCALE, az = (Number(row.zStart) || 0) * -SCALE;
+        const boxW = vertical ? depthW : runW, boxD = vertical ? runW : depthW;
+        const czOff = vertical ? -runW / 2 : depthW / 2;   // vertical rack runs toward -world-Z; horizontal depth is toward +world-Z
+        const geo = new THREE.BoxGeometry(boxW + 0.6, H, boxD + 0.6);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.55, depthWrite: false });
+        rackHint = new THREE.Mesh(geo, mat);
+        rackHint.position.set(ax + boxW / 2, H / 2, az + czOff);
+        rackHint.renderOrder = 999;
+        scene.add(rackHint);
+        rackHintRow = row;
         forceRender();
     }
     // Drop a dock combo: a door/curtain + a dock leveller, co-located on the snapped wall point.
@@ -8938,10 +9110,107 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         setBusy(false);
         status('Placed ' + newNames.length + ' rack rows (' + BAYS + ' bays each) along the back');
     }
+    // ── Rack aisle / double-row helpers (user metres) ──
+    const RACK_GAP_M   = 0.3;                 // back-to-back flue gap
+    const RACK_AISLE_M = 3.4;                 // working aisle between rack faces
+    const SR_DEPTH_M   = RACK_DEPTH / SCALE;  // 1 m single-row depth
+    function srackRunLenM(r){
+        const ppb  = Math.max(1, Math.floor(r.palletsPerBay || 1));
+        const cols = srackPaddedCols(Math.max(1, r.bays || 1) * ppb, ppb, r.passages);
+        const colW = (r.rackWidth && r.rackWidth > 0) ? r.rackWidth : (COLUMN_SPACING / SCALE);
+        return cols * colW;
+    }
+    // Snap a rack anchor along its DEPTH axis so the nearest parallel rack sits at a 3.4 m aisle.
+    function snapRackAisle(ux, uz, ori, depthM, runLenM, ignore){
+        const vertical = !(ori === 0 || ori === 180);   // ori 90/270 -> depth on +X ; ori 0/180 -> depth on -Z
+        const sign = vertical ? 1 : -1;
+        const d = vertical ? ux : uz;                    // near-face position on the depth axis
+        const runMin = vertical ? (uz - runLenM) : ux, runMax = vertical ? uz : (ux + runLenM);
+        const candLo = Math.min(d, d + sign * depthM), candHi = Math.max(d, d + sign * depthM);
+        let best = null, bestAbs = Infinity, bestRow = null; const SNAP_RANGE = RACK_AISLE_M + 2;
+        currentLayoutRows.forEach(r => {
+            if (r.type !== 'srack') return;
+            if (ignore && ignore.indexOf(r.rowName) >= 0) return;
+            const ro = Number(r.orientation) || 0;
+            if ((!(ro === 0 || ro === 180)) !== vertical) return;       // must be parallel
+            const rRun = srackRunLenM(r);
+            const rRunMin = vertical ? (r.zStart - rRun) : r.xPos, rRunMax = vertical ? r.zStart : (r.xPos + rRun);
+            if (Math.min(runMax, rRunMax) - Math.max(runMin, rRunMin) <= 0.05) return;   // runs must overlap to share an aisle
+            const runAnchorCand = vertical ? uz : ux;                                      // also require the rack to be near in the RUN direction,
+            const runAnchorNbr  = vertical ? (Number(r.zStart) || 0) : (Number(r.xPos) || 0);   // so sliding it far along the aisle releases the snap
+            if (Math.abs(runAnchorCand - runAnchorNbr) > SNAP_RANGE) return;
+            const rNear = vertical ? r.xPos : r.zStart, rFar = rNear + sign * SR_DEPTH_M;
+            const rLo = Math.min(rNear, rFar), rHi = Math.max(rNear, rFar);
+            [ d + ((rHi + RACK_AISLE_M) - candLo), d + ((rLo - RACK_AISLE_M) - candHi) ].forEach(nd => {
+                const delta = Math.abs(nd - d);
+                if (delta < bestAbs && delta <= SNAP_RANGE){ bestAbs = delta; best = nd; bestRow = r; }
+            });
+        });
+        if (best == null) return { ux, uz, target: null };
+        // Snap BOTH axes: the depth axis to the 3.4 m aisle, and the run axis to line up flush with the target rack.
+        return vertical
+            ? { ux: round3(best), uz: round3(Number(bestRow.zStart) || 0), target: bestRow }
+            : { ux: round3(Number(bestRow.xPos) || 0), uz: round3(best), target: bestRow };
+    }
+    // For a moving GROUP of racks: find one shared (dx,dz) offset that snaps the group to the nearest
+    // EXTERNAL rack, using whichever group member is closest to snapping. Relative spacing is preserved.
+    function snapRackGroupDelta(rows, ignore){
+        let best = null, bestMag = Infinity, bestTarget = null;
+        rows.forEach(r => {
+            if (!r || r.type !== 'srack') return;
+            const sn = snapRackAisle(r.xPos, r.zStart, Number(r.orientation) || 90, SR_DEPTH_M, srackRunLenM(r), ignore);
+            if (!sn.target) return;
+            const dx = sn.ux - r.xPos, dz = sn.uz - r.zStart, mag = Math.hypot(dx, dz);
+            if (mag < bestMag){ bestMag = mag; best = { dx, dz }; bestTarget = sn.target; }
+        });
+        return best ? { dx: best.dx, dz: best.dz, target: bestTarget } : null;
+    }
+    // A rack's footprint in user metres. Vertical (ori 90/270): depth +X, run +Z. Horizontal: run +X, depth -Z.
+    function rackAABB(r){
+        const ori = Number(r.orientation) || 0, vertical = !(ori === 0 || ori === 180);
+        const run = srackRunLenM(r), depth = SR_DEPTH_M;
+        const x0 = Number(r.xPos) || 0, z0 = Number(r.zStart) || 0;
+        return vertical ? { x1:x0, x2:x0 + depth, z1:z0, z2:z0 + run }
+                        : { x1:x0, x2:x0 + run,   z1:z0 - depth, z2:z0 };
+    }
+    function rackOverlapsAny(row, ignore){
+        const a = rackAABB(row), TOL = 0.05;   // small tolerance so touching racks (flue/aisle) don't count
+        return currentLayoutRows.some(r => {
+            if (r.type !== 'srack' || String(r.rowName) === String(row.rowName)) return false;
+            if (ignore && ignore.indexOf(r.rowName) >= 0) return false;
+            const b = rackAABB(r);
+            return (Math.min(a.x2,b.x2) - Math.max(a.x1,b.x1)) > TOL && (Math.min(a.z2,b.z2) - Math.max(a.z1,b.z1)) > TOL;
+        });
+    }
+    function placeDoubleRow(worldX, worldZ){
+        const ori = 90;
+        let ux = round3(worldX / SCALE), uz = round3(worldZ / -SCALE);
+        const defRun = srackRunLenM(NF_TYPES.srack.defaults);
+        const pairDepth = 2 * SR_DEPTH_M + RACK_GAP_M;                  // 2.3 m total
+        const sn = snapRackAisle(ux, uz, ori, pairDepth, defRun, []);
+        ux = sn.ux; uz = sn.uz;
+        const rows = [0, SR_DEPTH_M + RACK_GAP_M].map(dx => {           // back-to-back: 0 and 1.3 m along +X
+            const row = Object.assign({ type:'srack', maxColumns:1, maxLevels:1, palletsPerLevel:1, locPattern:'*' }, NF_TYPES.srack.defaults);
+            row.orientation = ori;
+            row.xPos = round3(ux + dx); row.zStart = round3(uz);
+            return row;                                                 // name assigned at push time so both stay unique
+        });
+        if (rows.some(r => rackOverlapsAny(r, []))){ status('Double-row rack would overlap an existing rack — not placed.'); return; }   // racks may not overlap
+        pushUndo();
+        const names = [];
+        rows.forEach(row => { row.rowName = uniqueName('srack'); currentLayoutRows.push(row); names.push(row.rowName); });
+        setBusy(true);
+        try { lightRebuild('srack'); selectGroup(names); forceRender(); }
+        catch(err){ console.error('double row error', err); }
+        refreshFeatureList();
+        setBusy(false);
+        status('Placed a double-row rack (back-to-back, 0.3 m flue, 3.4 m aisle).');
+    }
     function placeFeature(key, worldX, worldZ){
         if (NF_TEMPLATES[key]){ placeBuildingTemplate(key, worldX, worldZ); return; }
         if (COMBO_FEATURES[key]){ placeComboFeature(key, worldX, worldZ); return; }
         if (key === 'rackfill_warehouse'){ fillWarehouseWithRacks(worldX, worldZ); return; }
+        if (key === 'srack_double'){ placeDoubleRow(worldX, worldZ); return; }
         pushUndo();
         let snapOri = null;
         if (SNAP_TO_WALL[key]){
@@ -8972,6 +9241,11 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             if (key === 'parking_lane') row.label = '1';
             if (key === 'pvc_curtain'){ row.wDim = 3; row.hDim = 4; }   // default opening 3 m wide x 4 m tall (shown in the panel)
             if (key === 'ramp' || key === 'stairs') row.height = 1.5;    // rise to the raised-floor level (1.5 m) by default
+        }
+        if (row.type === 'srack'){
+            const sn = snapRackAisle(row.xPos, row.zStart, Number(row.orientation) || 90, SR_DEPTH_M, srackRunLenM(row), [row.rowName]);
+            row.xPos = sn.ux; row.zStart = sn.uz;
+            if (rackOverlapsAny(row, [row.rowName])){ undoStack.pop(); status('Rack would overlap an existing rack — not placed.'); return; }   // racks may not overlap
         }
         currentLayoutRows.push(row);
         // Build immediately (not via the 2-frame "Working…" deferral) so the new feature
@@ -9122,9 +9396,22 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         e.stopPropagation(); e.preventDefault();
         controls.enabled = false;
         const name = grp.userData.rowName;
-        const copyMode = (e.ctrlKey || e.metaKey);   // Ctrl/Cmd + drag = duplicate in place, then drag the copy
-        let groupDrag, moveNames;
-        if (copyMode){
+        const copyMode = (e.ctrlKey || e.metaKey);   // Ctrl/Cmd + DRAG = duplicate then drag the copy; a plain Ctrl+click must NOT copy
+        const startHit = floorPoint(e.clientX, e.clientY);
+        const downX = e.clientX, downY = e.clientY;
+        const DRAG_THRESH = 4;   // px the pointer must travel before a Ctrl-drag actually makes a copy
+        let groupDrag, items, undoBefore, copied = false;
+        const buildItems = (moveNames) => moveNames.map(nm => {
+            const row = currentLayoutRows.find(r => String(r.rowName) === String(nm));
+            const g = findGroup(nm);
+            const hasFar = row && row.x2 != null && row.z2 != null && nfByType(row.type) && nfByType(row.type).footprint;
+            return { nm: String(nm), row: row, g: g, hasFar: hasFar,
+                     rowX: row ? row.xPos : 0, rowZ: row ? row.zStart : 0,
+                     rowX2: hasFar ? row.x2 : null, rowZ2: hasFar ? row.z2 : null,
+                     gx: g ? g.position.x : 0, gz: g ? g.position.z : 0 };
+        });
+        // Copy is created lazily — only once the pointer is actually dragged (called from onMove).
+        const performCopy = () => {
             const srcNames = (isGroup() && selectedNames.indexOf(String(name)) !== -1) ? selectedNames.slice() : [String(name)];
             pushUndo();   // one undo step reverts the copy (and its drag) together
             const types = new Set(); const newNames = [];
@@ -9137,31 +9424,28 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                 types.add(row.type || 'fixture');
                 newNames.push(row.rowName);
             });
-            if (!newNames.length){ controls.enabled = true; return; }
+            if (!newNames.length) return false;
             try { types.forEach(t => lightRebuild(t)); } catch(err){ console.error('copy-drag rebuild error', err); }
             if (newNames.length === 1) select(newNames[0]); else selectGroup(newNames);
             groupDrag = newNames.length > 1;
-            moveNames = newNames;
-        } else {
+            items = buildItems(newNames);
+            copied = true;
+            return true;
+        };
+        if (!copyMode){
             groupDrag = isGroup() && selectedNames.indexOf(String(name)) !== -1;
             if (!groupDrag) select(name);    // single grab selects it (collapses any group); group grab keeps the group
-            moveNames = groupDrag ? selectedNames.slice() : [String(name)];
+            items = buildItems(groupDrag ? selectedNames.slice() : [String(name)]);
+            undoBefore = snapshotRows();   // captured now; only pushed to the undo stack if a move actually happens
         }
-        const startHit = floorPoint(e.clientX, e.clientY);
-        const items = moveNames.map(nm => {
-            const row = currentLayoutRows.find(r => String(r.rowName) === String(nm));
-            const g = findGroup(nm);
-            const hasFar = row && row.x2 != null && row.z2 != null && nfByType(row.type) && nfByType(row.type).footprint;
-            return { nm: String(nm), row: row, g: g, hasFar: hasFar,
-                     rowX: row ? row.xPos : 0, rowZ: row ? row.zStart : 0,
-                     rowX2: hasFar ? row.x2 : null, rowZ2: hasFar ? row.z2 : null,
-                     gx: g ? g.position.x : 0, gz: g ? g.position.z : 0 };
-        });
-        const undoBefore = snapshotRows();   // captured now; only pushed to the undo stack if a move actually happens
         const mv = { moved:false };
         const onMove = ev => {
+            if (copyMode && !copied){
+                if (Math.abs(ev.clientX - downX) < DRAG_THRESH && Math.abs(ev.clientY - downY) < DRAG_THRESH) return;   // not dragged yet → don't copy
+                if (!performCopy()) return;
+            }
             const hit = floorPoint(ev.clientX, ev.clientY);
-            if (!hit || !startHit) return;
+            if (!hit || !startHit || !items) return;
             const dx = hit.x - startHit.x, dz = hit.z - startHit.z;
             items.forEach(it => { if (!it.g){ it.g = findGroup(it.nm); if (it.g){ it.gx = it.g.position.x; it.gz = it.g.position.z; } } if (it.g){ it.g.position.x = it.gx + dx; it.g.position.z = it.gz + dz; } });
             mv.moved = true;
@@ -9174,15 +9458,25 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             if (prim.row && prim.row.type === 'fixture' && SNAP_TO_WALL[prim.row.subtype]){
                 const w = nearestBuildingWall(ux, uz);
                 if (w && w.dist <= SNAP_MAX_M && w.row) showSnapHint(w.row); else clearSnapHint();
-            }
+            } else if (!groupDrag && items.length === 1 && prim.row && prim.row.type === 'srack'){
+                const sn = snapRackAisle(round3(ux), round3(uz), Number(prim.row.orientation) || 90, SR_DEPTH_M, srackRunLenM(prim.row), [prim.row.rowName]);
+                showRackSnapHint(sn.target);
+            } else if (groupDrag){
+                const liveRows = items.map(it => (it.row && it.row.type === 'srack')
+                    ? Object.assign({}, it.row, { xPos: it.rowX + dx / SCALE, zStart: it.rowZ + dz / -SCALE }) : null).filter(Boolean);
+                const gd = liveRows.length ? snapRackGroupDelta(liveRows, items.map(it => it.nm)) : null;
+                showRackSnapHint(gd ? gd.target : null);
+            } else { clearRackSnapHint(); }
         };
         const onUp = ev => {
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup', onUp);
             controls.enabled = true;
+            clearRackSnapHint();
             hidePosTip();
             clearSnapHint();
             const hit = floorPoint(ev.clientX, ev.clientY);
+            if (copyMode && !copied){ select(name); return; }   // plain Ctrl+click (no drag) → just select, never copy
             if (hit && startHit && mv.moved){
                 if (!copyMode) pushUndo(undoBefore);
                 const dux = (hit.x - startHit.x) / SCALE, duz = (hit.z - startHit.z) / -SCALE;
@@ -9198,6 +9492,30 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
                     }
                     types.add(it.row.type || 'fixture');
                 });
+                if (!groupDrag && items.length === 1 && items[0].row && items[0].row.type === 'srack'){
+                    const it0 = items[0];                                  // keep a 3.4 m aisle to the nearest parallel rack
+                    const sn = snapRackAisle(it0.row.xPos, it0.row.zStart, Number(it0.row.orientation) || 90, SR_DEPTH_M, srackRunLenM(it0.row), [it0.row.rowName]);
+                    it0.row.xPos = sn.ux; it0.row.zStart = sn.uz;
+                }
+                if (groupDrag){                                            // snap a multi-select group as one unit (keeps internal spacing)
+                    const grpRows = items.map(it => it.row).filter(r => r && r.type === 'srack');
+                    const gd = grpRows.length ? snapRackGroupDelta(grpRows, items.map(it => it.nm)) : null;
+                    if (gd){ items.forEach(it => { if (it.row){ it.row.xPos = round3(it.row.xPos + gd.dx); it.row.zStart = round3(it.row.zStart + gd.dz); if (it.hasFar){ it.row.x2 = round3((it.row.x2 || 0) + gd.dx); it.row.z2 = round3((it.row.z2 || 0) + gd.dz); } } }); }
+                }
+                // Racks may not overlap: if the moved/copied rack lands on another rack, undo it.
+                const moveNames = items.map(it => it.nm);
+                const movedRacks = items.map(it => it.row).filter(r => r && r.type === 'srack');
+                if (movedRacks.some(r => rackOverlapsAny(r, moveNames))){
+                    if (copyMode){                                         // discard the just-made copies entirely
+                        for (let i = currentLayoutRows.length - 1; i >= 0; i--){ if (moveNames.indexOf(currentLayoutRows[i].rowName) >= 0) currentLayoutRows.splice(i, 1); }
+                        deselect();
+                        status('Copy cancelled — racks may not overlap.');
+                    } else {                                               // snap the move back to where it started
+                        items.forEach(it => { if (!it.row) return; it.row.xPos = round3(it.rowX); it.row.zStart = round3(it.rowZ); if (it.hasFar){ it.row.x2 = round3(it.rowX2); it.row.z2 = round3(it.rowZ2); } });
+                        undoStack.pop();
+                        status('Move cancelled — racks may not overlap.');
+                    }
+                }
                 withBusy(() => { types.forEach(t => lightRebuild(t)); reattachHighlight(); if (!groupDrag && items[0].row) updateXZInputs(items[0].row.xPos, items[0].row.zStart); });
             } else if (mv.moved){
                 const types = new Set(); items.forEach(it => { if (it.row) types.add(it.row.type || 'fixture'); });
@@ -9629,6 +9947,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         rebuildExtraBoxes();
         populateGroupPanel();
         setFeatureActive(selectedName);
+        raisedFloorTintNames = selectedNames.slice(); applyRaisedFloorTints();
         forceRender();
     }
     function populateGroupPanel(){
@@ -9647,16 +9966,9 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         panel.appendChild(head);
 
         const mkBtn = (label, title, fn) => { const b = document.createElement('button'); b.className = 'sp-gbtn'; b.textContent = label; b.title = title; b.addEventListener('click', fn); return b; };
-        const align = document.createElement('div'); align.className = 'sp-fields';
-        const r1 = document.createElement('div'); r1.className = 'sp-grow';
-        r1.appendChild(mkBtn('Align X', 'Move all to the primary feature\u2019s X', () => alignGroup('x')));
-        r1.appendChild(mkBtn('Align Z', 'Move all to the primary feature\u2019s Z', () => alignGroup('z')));
-        align.appendChild(r1);
-        const r2 = document.createElement('div'); r2.className = 'sp-grow';
-        r2.appendChild(mkBtn('Distribute X', 'Even spacing along X (3+ features)', () => distributeGroup('x')));
-        r2.appendChild(mkBtn('Distribute Z', 'Even spacing along Z (3+ features)', () => distributeGroup('z')));
-        align.appendChild(r2);
-        panel.appendChild(align);
+        const posBox = document.createElement('div'); posBox.className = 'sp-fields';
+        addGroupMoveFields(posBox, primary);   // X (m) / Z (m) set every selected feature to the typed value
+        panel.appendChild(posBox);
 
         const grid = document.createElement('div'); grid.className = 'sp-fields'; panel.appendChild(grid);
         if (sameType){
@@ -9675,38 +9987,52 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         panel.classList.add('show');
     }
     const SEG_TYPES = { wall:1, line:1, metalwall:1, building:1, pvc:1 };
-    function alignGroup(axis){
-        const f = (axis === 'x') ? 'xPos' : 'zStart', f2 = (axis === 'x') ? 'x2' : 'z2';
-        const prim = currentLayoutRows.find(r => String(r.rowName) === String(selectedName));
-        if (!prim) return;
-        const target = Number(prim[f]) || 0;
-        pushUndo();
-        selectedNames.forEach(nm => {
-            const row = currentLayoutRows.find(r => String(r.rowName) === String(nm));
-            if (!row) return;
-            const d = target - (Number(row[f]) || 0);
-            row[f] = round3(target);
-            if (row[f2] != null) row[f2] = round3((Number(row[f2]) || 0) + d);
+    // Group X (m) / Z (m) fields: typing a value moves the WHOLE selection so the primary feature
+    // reaches it, keeping every feature's relative spacing (no alignment, no accidental collapse).
+    function addGroupMoveFields(box, primary){
+        [['X (m)', 'xPos'], ['Z (m)', 'zStart']].forEach(([labelText, field]) => {
+            const r = makeRow(box, labelText);
+            const inp = document.createElement('input');
+            inp.type = 'number'; inp.step = '0.1'; inp.className = 'sp-in';
+            inp.min = String(-FIELD_LIMIT); inp.max = String(FIELD_LIMIT);
+            inp.title = 'Sets every selected feature to this value';
+            inp.value = round3(Number(primary[field]) || 0);
+            inp.addEventListener('change', () => {
+                let num = Number(inp.value.trim());
+                if (inp.value.trim() === '' || !isFinite(num)){ inp.value = round3(Number(primary[field]) || 0); return; }
+                if (num >  FIELD_LIMIT) num =  FIELD_LIMIT;
+                if (num < -FIELD_LIMIT) num = -FIELD_LIMIT;
+                const ok = moveGroupTo(field, num);
+                if (ok === false){                                           // rejected (would overlap) → flash the field red + restore value
+                    inp.value = round3(Number(primary[field]) || 0);
+                    inp.style.background = 'rgba(255,77,77,0.18)'; inp.style.borderColor = 'var(--red)';
+                    setTimeout(() => { inp.style.background = ''; inp.style.borderColor = ''; }, 1300);
+                }
+            });
+            r.appendChild(inp);
         });
-        groupRebuild();
-        status('Aligned ' + selectedNames.length + ' features on ' + axis.toUpperCase());
     }
-    function distributeGroup(axis){
-        const f = (axis === 'x') ? 'xPos' : 'zStart', f2 = (axis === 'x') ? 'x2' : 'z2';
-        const rows = selectedNames.map(nm => currentLayoutRows.find(r => String(r.rowName) === String(nm))).filter(Boolean);
-        if (rows.length < 3){ status('Select 3+ features to distribute'); return; }
-        const sorted = rows.slice().sort((a, b) => (Number(a[f]) || 0) - (Number(b[f]) || 0));
-        const min = Number(sorted[0][f]) || 0, max = Number(sorted[sorted.length - 1][f]) || 0;
-        const step = (max - min) / (sorted.length - 1);
+    function moveGroupTo(field, value){
+        const f2 = (field === 'xPos') ? 'x2' : 'z2';
+        const rowsSel = selectedNames.map(nm => currentLayoutRows.find(r => String(r.rowName) === String(nm))).filter(Boolean);
+        if (!rowsSel.length) return false;
+        const prev = rowsSel.map(r => ({ r: r, v: Number(r[field]) || 0, v2: (r[f2] != null) ? (Number(r[f2]) || 0) : null }));   // for revert
         pushUndo();
-        sorted.forEach((row, i) => {
-            const t = round3(min + step * i);
-            const d = t - (Number(row[f]) || 0);
-            row[f] = t;
-            if (row[f2] != null) row[f2] = round3((Number(row[f2]) || 0) + d);
+        rowsSel.forEach(row => {                                              // set EVERY selected feature to the same value
+            const d = round3(value - (Number(row[field]) || 0));
+            row[field] = round3(value);
+            if (row[f2] != null) row[f2] = round3((Number(row[f2]) || 0) + d);   // shift the far end too so segment length is kept
         });
+        const racks = rowsSel.filter(r => r.type === 'srack');               // racks may not overlap — incl. with each other in the group
+        if (racks.some(r => rackOverlapsAny(r, []))){
+            prev.forEach(p => { p.r[field] = round3(p.v); if (p.v2 != null) p.r[f2] = round3(p.v2); });
+            undoStack.pop();
+            status('Not applied — racks would overlap. Use the other axis, or move them apart first.');
+            return false;                                                    // no rebuild needed: data already reverted, scene unchanged
+        }
         groupRebuild();
-        status('Distributed ' + rows.length + ' features along ' + axis.toUpperCase());
+        status('Set ' + rowsSel.length + ' features to ' + (field === 'xPos' ? 'X' : 'Z') + ' = ' + round3(value));
+        return true;
     }
     function rotateGroup(deg){
         pushUndo();
@@ -9765,6 +10091,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
             clearHandles();
         }
         setFeatureActive(name);
+        raisedFloorTintNames = selectedNames.slice(); applyRaisedFloorTints();
     }
     function deselect(){
         selectedName = null;
@@ -9774,6 +10101,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         clearHandles();
         panel.classList.remove('show');
         setFeatureActive(null);
+        raisedFloorTintNames = []; applyRaisedFloorTints();
     }
 
     // ── Rotate / delete ──
@@ -9887,6 +10215,7 @@ document.getElementById('layoutFile').addEventListener('change', (event) => {
         rebuildExtraBoxes();
         populateGroupPanel();
         setFeatureActive(selectedName);
+        raisedFloorTintNames = selectedNames.slice(); applyRaisedFloorTints();
         forceRender();
     }
     function copySelection(){
